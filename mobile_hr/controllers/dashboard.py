@@ -13,7 +13,6 @@ COMPARISON_PERIOD = {
 EMPLOYEE_SPECIFICATION = {
     "name": {},
     "mobile_image_url": {},
-    "branch_id": {"fields": {"name": {}}},
     "email": {},
     "mobile_phone": {},
     "work_email": {},
@@ -216,7 +215,7 @@ class HRDashboardController(http.Controller):
                 .with_company(PARENT_COMPANY_ID)
                 ._get_employee_status_at_date(
                     date=date.today(),
-                    employee_domain=[("branch_id", "=", employee_id.branch_id.id)],
+                    employee_domain=[],
                 )
             )
 
@@ -226,7 +225,7 @@ class HRDashboardController(http.Controller):
                 .with_company(PARENT_COMPANY_ID)
                 ._get_emloyee_aged_report(
                     date_from=date.today() - timedelta(days=365),
-                    domain=[("branch_id", "=", employee_id.branch_id.id)],
+                    domain=[],
                 )
             )
 
@@ -314,13 +313,13 @@ class HRDashboardController(http.Controller):
         # department_id = kw.get("department_id")
         PARENT_COMPANY_ID = request.env.company.parent_id.id or request.env.company.id
 
-        employee_id = (
-            request.env.user.sudo().with_company(PARENT_COMPANY_ID).employee_id
-        )
+        # employee_id = (
+        #     request.env.user.sudo().with_company(PARENT_COMPANY_ID).employee_id
+        # )
 
         domain = []
-        if request.env.user.hr_app_role != "admin":
-            domain.append(("branch_id", "=", employee_id.branch_id.id))
+        # if request.env.user.hr_app_role != "admin":
+        #     domain.append(("branch_id", "=", employee_id.branch_id.id))
 
         total_employees = (
             request.env["hr.employee"]

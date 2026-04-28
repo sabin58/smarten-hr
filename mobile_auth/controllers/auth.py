@@ -425,7 +425,6 @@ class MobileAuth(http.Controller):
                 {
                     "name": {},
                     "mobile_image_url": {},
-                    "branch_id": {"fields": {"name": {}}},
                     "email": {},
                     "mobile_phone": {},
                     "work_email": {},

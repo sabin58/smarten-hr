@@ -57,7 +57,7 @@ class TimeOffController(Controller):
 
         limit = kwargs.get("limit") or 80
         page = kwargs.get("page") or 1
-        branch_id = kwargs.get("branch_id")
+        department_id = kwargs.get("department_id")
         state = kwargs.get("state")
 
         domain = []
@@ -66,11 +66,13 @@ class TimeOffController(Controller):
         if user.hr_app_role != "admin" and user.hr_app_role != "manager":
             domain.append(("employee_id", "=", employee_id.id))
 
-        if user.hr_app_role == "admin" and branch_id:
-            domain.append(("employee_id.branch_id", "=", branch_id))
+        if user.hr_app_role == "admin" and department_id:
+            domain.append(("employee_id.department_id", "=", department_id))
 
         if user.hr_app_role == "manager":
-            domain.append(("employee_id.branch_id", "=", employee_id.branch_id.id))
+            domain.append(
+                ("employee_id.department_id", "=", employee_id.department_id.id)
+            )
 
         if state:
             domain.append(("state", "=", state))

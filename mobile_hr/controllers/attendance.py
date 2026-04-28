@@ -83,12 +83,12 @@ class AttendanceController(Controller):
                 "message": "Employee not found !!",
             }
 
-        if employee.branch_id.biometric_available:
-            return {
-                "status": 403,
-                "data": None,
-                "message": "Your branch's attendance must be done from attendance device !!",
-            }
+        # if employee.branch_id.biometric_available:
+        #     return {
+        #         "status": 403,
+        #         "data": None,
+        #         "message": "Your branch's attendance must be done from attendance device !!",
+        #     }
 
         weekday = str(today.weekday())  # Monday=0 ... Sunday=6
 
