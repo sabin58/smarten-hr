@@ -4,12 +4,20 @@ from odoo.addons.mobile_auth.controllers.auth import generate_image
 from datetime import datetime, time, timedelta
 
 
+class HREmployeePublic(models.Model):
+    _inherit = "hr.employee.public"
+
+    joined_date = fields.Datetime("Joined Date", related="employee_id.joined_date")
+
+
 class HREmployee(models.Model):
     _inherit = "hr.employee"
 
     mobile_image_url = fields.Char(compute="_compute_mobile_url", store=False)
 
     is_present = fields.Boolean(compute="_compute_is_present", store=False)
+
+    joined_date = fields.Datetime("Joined Date")
 
     def _compute_is_present(self):
         for rec in self:
