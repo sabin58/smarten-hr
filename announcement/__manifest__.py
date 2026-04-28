@@ -1,0 +1,26 @@
+# -*- coding: utf-8 -*-
+{
+    'name': 'Official Announcements',
+    'version': '18.0',
+    'category': 'Human Resources',
+    'summary': """Manages Official Announcements""",
+    'description': 'This module helps you to manage HR official announcements',
+    'author': 'Smarten Technologies Pvt. Ltd.',
+    'website': 'https://www.smarten.com',
+    'company': 'Smarten Technologies Pvt. Ltd.',
+    'maintainer': 'Smarten Technologies Pvt. Ltd.',
+    'depends': ['hr', 'mail'],
+    'data': [
+        'security/hr_announcement_security.xml',
+        'security/ir.model.access.csv',
+        'data/ir_cron_data.xml',
+        'data/ir_sequence_data.xml',
+        'views/hr_announcement_views.xml',
+        'views/hr_employee_views.xml',
+        'views/hr_reward_warning_menus.xml',
+    ],
+    'license': 'LGPL-3',
+    'installable': True,
+    'auto_install': False,
+    'application': False,
+}

@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+mobile_hr.access_external_news,access_external_news,mobile_hr.model_external_news,base.group_public,1,0,0,0, 
+mobile_hr.access_external_news,access_external_news,mobile_hr.model_external_news,base.group_user,1,1,1,1
+mobile_hr.access_mero_rashifal,access_mero_rashifal,mobile_hr.model_mero_rashifal,base.group_user,1,1,1,1

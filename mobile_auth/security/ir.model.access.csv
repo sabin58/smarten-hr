@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+mobile_api.access_otp_otp,access_otp_otp,mobile_auth.model_otp_otp,base.group_user,1,1,1,1,
+mobile_api.access_mobile_banner,access_mobile_banner,mobile_auth.model_mobile_banner,base.group_public,1,1,1,1,
