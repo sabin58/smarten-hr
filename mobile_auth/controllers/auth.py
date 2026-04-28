@@ -440,3 +440,150 @@ class MobileAuth(http.Controller):
             return {"status": 401, "data": None, "message": "Token Expired !!"}
 
         return {"status": 200, "message": "success", "data": user}
+
+    @http.route(
+        "/mobile/api/reset-password",
+        type="json",
+        methods=["POST"],
+        csrf=False,
+        auth="public",
+        cors="*",
+    )
+    def reset_password(self, **kw):
+
+        login = kw.get("login")
+
+        if not login:
+            return {"status": 400, "message": "Login is required", "data": None}
+
+        user = request.env["res.users"].sudo().search([("login", "=", login)], limit=1)
+
+        if not user:
+            return {
+                "status": 400,
+                "message": "We couldn’t find your account",
+                "data": None,
+            }
+
+        generate_otp(request, {"login": login})
+
+        return {
+            "status": 200,
+            "message": "We’ve sent an OTP to your email or phone number.",
+            "data": None,
+        }
+
+    @http.route(
+        "/mobile/api/verify-otp",
+        type="json",
+        methods=["POST"],
+        csrf=False,
+        auth="public",
+        cors="*",
+    )
+    def verify_otp(self, **kw):
+
+        login = kw.get("login")
+        otp = kw.get("otp")
+
+        if not login or not otp:
+            return {"status": 400, "message": "Login/OTP is required", "data": None}
+
+        user = request.env["res.users"].sudo().search([("login", "=", login)], limit=1)
+
+        if not user:
+            return {
+                "status": 400,
+                "message": "We couldn’t find your account",
+                "data": None,
+            }
+
+        otp_object = request.env["otp.otp"].sudo().search([("login", "=", login)])
+
+        if not otp_object:
+            return {
+                "status": 400,
+                "message": "OTP not found. Please request a new one.",
+                "data": None,
+            }
+
+        if otp_object.is_expired:
+            return {
+                "status": 400,
+                "message": "OTP has expired. Please request a new one.",
+                "data": None,
+            }
+
+        if otp_object.otp != otp:
+            return {
+                "status": 400,
+                "message": "Invalid OTP",
+                "data": None,
+            }
+
+        token_record = request.env["password.reset.token"].sudo().create_token(user)
+        reset_token = token_record.token
+        return {
+            "status": 200,
+            "message": "Verify Successfully !!",
+            "data": {"reset_token": reset_token},
+        }
+
+    @http.route(
+        "/mobile/api/change-password",
+        type="json",
+        methods=["POST"],
+        csrf=False,
+        auth="public",
+        cors="*",
+    )
+    def change_password(self, **kw):
+
+        reset_token = kw.get("reset_token")
+        new_password = kw.get("new_password")
+
+        if not reset_token or not new_password:
+            return {
+                "status": 400,
+                "message": "Reset token and new password are required",
+                "data": None,
+            }
+
+        token_record = (
+            request.env["password.reset.token"]
+            .sudo()
+            .search([("token", "=", reset_token)], limit=1)
+        )
+
+        if not token_record:
+            return {
+                "status": 400,
+                "message": "Invalid reset token",
+                "data": None,
+            }
+
+        if not token_record.is_valid():
+            return {
+                "status": 400,
+                "message": "Reset token is expired or already used",
+                "data": None,
+            }
+
+        user = token_record.user_id
+
+        if not user:
+            return {
+                "status": 400,
+                "message": "User not found",
+                "data": None,
+            }
+
+        user.sudo().write({"password": new_password})
+
+        token_record.mark_used()
+
+        return {
+            "status": 200,
+            "message": "Password changed successfully",
+            "data": None,
+        }
