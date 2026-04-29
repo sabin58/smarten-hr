@@ -10,7 +10,7 @@ from . import constant
 import base64
 import uuid
 import functools
-
+import re
 
 _logger = logging.getLogger(__name__)
 
@@ -75,20 +75,41 @@ def login_required():
 
 
 def generate_otp(request, values):
-    otp = request.env["otp.otp"].sudo().create(values)
+    otp_record = request.env["otp.otp"].sudo().create(values)
 
-    if values.get("login"):
-        sms_sms = (
-            request.env["sms.sms"]
-            .sudo()
-            .create(
-                {
-                    "number": values["login"],
-                    "body": f"Your OTP for registration  is {otp.otp}",
-                }
-            )
-        )
-        sms_sms._send()
+    login = values.get("login")
+
+    if not login:
+        return otp_record
+
+    is_email = re.match(r"[^@]+@[^@]+\.[^@]+", login)
+
+    if is_email:
+        mail_values = {
+            "email_to": login,
+            "subject": "Your OTP Code",
+            "body_html": f"""
+                <div style="font-family:Arial, sans-serif; font-size:14px;">
+                    <p>Hello,</p>
+                    <p>Your OTP for registration is:</p>
+                    <h2 style="color:#2c3e50;">{otp_record.otp}</h2>
+                    <p>Please do not share this code with anyone.</p>
+                    <br/>
+                    <p>Thanks,<br/>Support Team</p>
+                </div>
+            """,
+        }
+
+        request.env["mail.mail"].sudo().create(mail_values).send()
+
+    else:
+        # Send SMS OTP
+        request.env["sms.sms"].sudo().create(
+            {
+                "number": login,
+                "body": f"Your OTP for verification is {otp_record.otp}",
+            }
+        )._send()
 
 
 def make_response(func):
