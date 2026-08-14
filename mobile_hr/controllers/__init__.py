@@ -9,3 +9,4 @@ from . import payslip
 from . import attendance
 from . import rashifal
 from . import helpdesk
+from . import expense

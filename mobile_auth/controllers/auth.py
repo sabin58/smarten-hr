@@ -116,6 +116,11 @@ def make_response(func):
     def inner(*args, **kwargs):
         result = func(*args, **kwargs)
         headers = {"Access-Control-Allow-Origin": "*"}
+        print(
+            {
+                "result": result,
+            }
+        )
         return Response(
             json.dumps(
                 {
@@ -140,16 +145,21 @@ def endoceJwt(token, secret_key):
     return user
 
 
-def generate_image(model, image_field, id):
+def generate_image(model, image_field, id, timestamp=None):
     base_url = request.env["ir.config_parameter"].sudo().get_base_url()
     # base_url = "http://10.0.2.2:8069"
 
-    return f"{base_url}/web/custom_image/{model}/{id}/{image_field}"
+    return f"{base_url}/web/custom_image/{model}/{id}/{image_field}?unique={timestamp}"
 
 
 class MobileAuth(http.Controller):
     @http.route(
-        "/mobile/api/login", type="json", auth="public", csrf=False, method=["POST"]
+        "/mobile/api/login",
+        type="json",
+        auth="public",
+        csrf=False,
+        methods=["POST"],
+        cors="*",
     )
     def login(self, **kw):
         email = kw.get("email")
@@ -429,7 +439,7 @@ class MobileAuth(http.Controller):
     @login_required()
     def get_hr_profile(self, **kw):
 
-        PARENT_COMPANY_ID = request.env.company.parent_id.id
+        PARENT_COMPANY_ID = request.env.company.parent_id.id or request.env.company.id
 
         employee_id = (
             request.env.user.sudo().with_company(PARENT_COMPANY_ID).employee_id
@@ -437,7 +447,12 @@ class MobileAuth(http.Controller):
         user = kw["user"].read(USER_READ_FIELDS)[0]
 
         if employee_id.image_256:
-            user["image"] = generate_image("hr.employee", "image_256", employee_id.id)
+            user["image"] = generate_image(
+                "hr.employee",
+                "image_256",
+                employee_id.id,
+                employee_id.write_date.timestamp(),
+            )
         else:
             user["image"] = None
 

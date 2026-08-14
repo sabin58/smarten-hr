@@ -1,4 +1,6 @@
 from collections import defaultdict
+
+import pytz
 from odoo import fields, models, api
 from odoo.addons.mobile_auth.controllers.auth import generate_image
 from datetime import datetime, time, timedelta
@@ -20,55 +22,126 @@ class HREmployee(models.Model):
     joined_date = fields.Datetime("Joined Date")
 
     def _compute_is_present(self):
-        for rec in self:
-            attendance = self.env["hr.attendance"].search(
-                [("date", "=", datetime.today()), ("employee_id", "=", rec.id)], limit=1
+        # sudo: mobile app users may be portal users, who have no ACL on
+        # hr.attendance. Read in one query instead of one per employee.
+        attendances = (
+            self.env["hr.attendance"]
+            .sudo()
+            .search(
+                [
+                    ("date", "=", fields.Date.context_today(self)),
+                    ("employee_id", "in", self.ids),
+                ]
             )
-            if attendance:
-                rec.is_present = True
-            else:
-                rec.is_present = False
+        )
+        present_ids = set(attendances.mapped("employee_id").ids)
+
+        for rec in self:
+            rec.is_present = rec.id in present_ids
 
     @api.depends("image_256")
     def _compute_mobile_url(self, **kw):
+        # sudo: image_256 and write_date live on hr.employee.public, which is
+        # readable by internal users only, and mobile app users may be portal
+        # users. Values are read through sudo but assigned on self.
+        values = {rec.id: (rec.image_256, rec.write_date) for rec in self.sudo()}
+
         for rec in self:
-            if rec.image_256:
+            image, write_date = values.get(rec.id, (None, None))
+            if image:
                 rec.mobile_image_url = generate_image(
-                    "hr.employee", "image_256", rec.id
+                    "hr.employee",
+                    "image_256",
+                    rec.id,
+                    write_date and write_date.timestamp(),
                 )
             else:
                 rec.mobile_image_url = None
 
     @api.model
-    def _get_employee_status_at_date(self, employee_domain=[], date=None):
+    def _get_employees_on_leave(self, employees, date):
+        """Employees with a validated leave covering ``date``.
+
+        ``hr.employee.is_absent`` only ever answers for today, so it cannot be
+        used when the dashboard compares against a past date.
+        """
+        leaves = (
+            self.env["hr.leave"]
+            .sudo()
+            .search(
+                [
+                    ("employee_id", "in", employees.ids),
+                    ("state", "=", "validate"),
+                    ("date_from", "<=", datetime.combine(date, time.max)),
+                    ("date_to", ">=", datetime.combine(date, time.min)),
+                ]
+            )
+        )
+        return leaves.mapped("employee_id")
+
+    @api.model
+    def _get_late_count(self, attendances):
+        """Employees whose first check-in is after their scheduled start."""
+        late_count = 0
+
+        for employee, employee_attendances in attendances.grouped(
+            "employee_id"
+        ).items():
+            calendar = employee.resource_calendar_id
+            if not calendar:
+                continue
+
+            tz = pytz.timezone(calendar.tz or employee.tz or "UTC")
+            check_in = pytz.utc.localize(
+                min(employee_attendances.mapped("check_in"))
+            ).astimezone(tz)
+
+            working_slots = calendar.attendance_ids.filtered(
+                lambda a: a.dayofweek == str(check_in.weekday())
+            )
+            if not working_slots:
+                continue
+
+            expected_start = min(working_slots.mapped("hour_from"))
+            if check_in.hour + check_in.minute / 60 > expected_start:
+                late_count += 1
+
+        return late_count
+
+    @api.model
+    def _get_employee_status_at_date(self, employee_domain=None, date=None):
 
         self = self.sudo()
+        date = date or fields.Date.context_today(self)
+
         # Get all active employees
-        employees = self.env["hr.employee"].search(employee_domain)
+        employees = self.env["hr.employee"].search(employee_domain or [])
 
-        # Get attendance records for the date
-        if len(employee_domain) > 0:
-            attendances = self.env["hr.attendance"].search(
-                [("date", "=", date), ("employee_id", "in", employees.ids)]
-            )
-        else:
-            attendances = self.env["hr.attendance"].search([("date", "=", date)])
+        # Get attendance records for the date. Always restricted to the
+        # employees above, otherwise archived employees inflate the head count.
+        attendances = self.env["hr.attendance"].search(
+            [("date", "=", date), ("employee_id", "in", employees.ids)]
+        )
 
-        present_employee_ids = attendances.mapped("employee_id").ids
+        present_employees = attendances.mapped("employee_id")
 
-        present_count = len(set(present_employee_ids))
-        absent_count = len(employees) - present_count
+        # present / leave / absent are kept mutually exclusive so the three
+        # cards add up to the head count.
+        on_leave = self._get_employees_on_leave(employees, date) - present_employees
 
-        leave = len(employees.filtered(lambda emp: emp.is_absent))
+        present_count = len(present_employees)
+        leave_count = len(on_leave)
 
         return {
             "present": present_count,
-            "absent": absent_count,
-            "leave": leave,
+            "absent": len(employees) - present_count - leave_count,
+            "late": self._get_late_count(attendances),
+            "leave": leave_count,
         }
 
     @api.model
-    def _get_emloyee_aged_report(self, date_from, domain=[]):
+    def _get_emloyee_aged_report(self, date_from, domain=None):
+        domain = domain or []
         hired_domain = domain.copy()
         fired_domain = domain.copy()
 
@@ -88,10 +161,30 @@ class HREmployee(models.Model):
 
         self.ensure_one()
 
-        calendar = self.resource_calendar_id
+        # sudo: mobile app users may be portal users, who have no ACL on
+        # hr.attendance nor on the resource calendar.
+        self = self.sudo()
 
-        if not calendar:
-            raise ValueError("Employee has no working schedule assigned.")
+        all_days = set()
+        current = date_from.date()
+        while current <= date_to.date():
+            all_days.add(current)
+            current += timedelta(days=1)
+
+        empty_report = {
+            "total_days": len(all_days),
+            "working_days": 0,
+            "present": 0,
+            "absent": 0,
+            "weekend_present": 0,
+            "weekend_absent": 0,
+            "attendance_percentage": 0,
+        }
+
+        # An employee without a working schedule has nothing to report on; the
+        # dashboard should still render rather than fail.
+        if not self.resource_calendar_id:
+            return empty_report
 
         attendances = self.env["hr.attendance"].search(
             [
@@ -103,18 +196,15 @@ class HREmployee(models.Model):
 
         present_days = {att.check_in.date() for att in attendances}
 
-        all_days = set()
-        current = date_from.date()
-        while current <= date_to.date():
-            all_days.add(current)
-            current += timedelta(days=1)
-
         work_intervals = self._get_expected_attendances(date_from, date_to)
 
         working_times = defaultdict(lambda: [])
         for expected_attendance in work_intervals:
             working_times[expected_attendance[0].date()].append(expected_attendance[:2])
         working_days = working_times.keys()
+
+        if not working_days:
+            return empty_report
 
         non_working_days = all_days - working_days
 

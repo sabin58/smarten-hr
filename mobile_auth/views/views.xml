@@ -7,7 +7,7 @@
         <field name="inherit_id" ref="base.view_users_simple_form" />
         <field name="arch" type="xml">
             <xpath expr="//group[@name='phone_numbers']" position="inside">
-                <field name="role" />
+                <field name="hr_app_role" />
             </xpath>
         </field>
     </record>

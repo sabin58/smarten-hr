@@ -17,6 +17,7 @@
         "project",
         "hr_payroll",
         "hr_attendance",
+        "hr_expense",
     ],
     "data": ["security/ir.model.access.csv", "views/external_news.xml"],
     "assets": {},

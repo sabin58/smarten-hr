@@ -1,7 +1,8 @@
-from odoo import http, models
+import pytz
+from odoo import http
 from odoo.http import request
 from odoo.addons.mobile_auth.controllers.auth import login_required
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 COMPARISON_PERIOD = {
     30: "Last 30 Days",
@@ -39,47 +40,100 @@ class HRDashboardController(http.Controller):
 
         return all_department_ids
 
+    def _get_local_now(self):
+        """Now in the user's timezone.
+
+        Stored datetimes are UTC while the dashboard reasons in calendar days,
+        so every window boundary has to be built from a localized 'now'.
+        """
+        return datetime.now(pytz.utc).astimezone(
+            pytz.timezone(request.env.user.tz or "UTC")
+        )
+
+    def _get_local_today(self):
+        return self._get_local_now().date()
+
+    def _get_aggregate_sum(
+        self, model_name, domain, groupby, aggregates, count_groups=False
+    ):
+        """Sum the first aggregate of a ``_read_group`` over all its groups.
+
+        ``_read_group`` returns the groupby values first and the aggregates
+        after them, so the aggregate column is at index ``len(groupby)``. With
+        ``count_groups`` the number of groups is returned instead, which is how
+        distinct days are counted.
+        """
+        rows = (
+            request.env[model_name]
+            .sudo()
+            ._read_group(domain=domain, groupby=groupby, aggregates=aggregates)
+        )
+        if count_groups:
+            return len(rows)
+        return sum((row[len(groupby)] or 0) for row in rows)
+
+    def _growth_card(self, label, current, before, period, is_negative_good=False):
+        card = {
+            "label": label,
+            "current": current,
+            "before": before,
+            "growth": round((current - before) / before * 100, 2) if before else 0,
+            "period": period,
+        }
+        if is_negative_good:
+            card["isNegativeGood"] = True
+        return card
+
     def _get_model_comparison(
         self,
         model_name: str,
         comparison_day: int = 1,
         date_field: str = "date",
-        domain=[],
-        groupby=[],
-        aggregates=[],
+        domain=None,
+        groupby=None,
+        aggregates=None,
+        count_groups=False,
     ):
-        today = datetime.today()
-        start_range_today = today - timedelta(days=comparison_day)
+        domain = domain or []
+        groupby = groupby or []
+        aggregates = aggregates or ["__count"]
 
-        current_stats = (
-            request.env[model_name]
-            .sudo()
-            ._read_group(
-                domain=domain
-                + [(date_field, "<=", today), (date_field, ">", start_range_today)],
-                groupby=groupby,
-                aggregates=aggregates,
-            )
+        local_now = self._get_local_now()
+        boundaries = [
+            local_now - timedelta(days=comparison_day * offset) for offset in range(3)
+        ]
+
+        # Date fields are compared on calendar days, datetime fields are stored
+        # in UTC and must be compared against naive UTC boundaries.
+        if request.env[model_name]._fields[date_field].type == "date":
+            boundaries = [boundary.date() for boundary in boundaries]
+        else:
+            boundaries = [
+                boundary.astimezone(pytz.utc).replace(tzinfo=None)
+                for boundary in boundaries
+            ]
+
+        today, start_range_today, start_range_before = boundaries
+
+        current_stats_count = self._get_aggregate_sum(
+            model_name,
+            domain + [(date_field, "<=", today), (date_field, ">", start_range_today)],
+            groupby,
+            aggregates,
+            count_groups,
+        )
+        before_stats_count = self._get_aggregate_sum(
+            model_name,
+            domain
+            + [
+                (date_field, "<=", start_range_today),
+                (date_field, ">", start_range_before),
+            ],
+            groupby,
+            aggregates,
+            count_groups,
         )
 
-        current_stats_count = sum([tupple[1] for tupple in current_stats])
-        start_range_before = start_range_today - timedelta(days=comparison_day)
-
-        before_stats = (
-            request.env[model_name]
-            .sudo()
-            ._read_group(
-                domain=domain
-                + [
-                    (date_field, "<=", start_range_today),
-                    (date_field, ">", start_range_before),
-                ],
-                groupby=groupby,
-                aggregates=aggregates,
-            )
-        )
-
-        before_stats_count = sum([tupple[1] for tupple in before_stats])
         return {
             "current": round(current_stats_count, 2),
             "before": round(before_stats_count, 2),
@@ -88,7 +142,9 @@ class HRDashboardController(http.Controller):
             )
             if before_stats_count
             else 0,
-            "period": COMPARISON_PERIOD[comparison_day],
+            "period": COMPARISON_PERIOD.get(
+                comparison_day, f"Last {comparison_day} Days"
+            ),
         }
 
     @http.route(
@@ -101,8 +157,7 @@ class HRDashboardController(http.Controller):
     )
     @login_required()
     def get_my_dashbord(self, **kw):
-        user = request.env.user
-        role = user.hr_app_role
+        role = request.env.user.hr_app_role
         data = dict()
 
         PARENT_COMPANY_ID = request.env.company.parent_id.id or request.env.company.id
@@ -111,81 +166,88 @@ class HRDashboardController(http.Controller):
             request.env.user.sudo().with_company(PARENT_COMPANY_ID).employee_id
         )
 
-        if role == "admin":
-            attendance_statuses_today = request.env[
-                "hr.employee"
-            ]._get_employee_status_at_date(date=date.today())
-            attendance_statuses_yesterday = request.env[
-                "hr.employee"
-            ]._get_employee_status_at_date(date=date.today() - timedelta(days=1))
+        today = self._get_local_today()
+        yesterday = today - timedelta(days=1)
+        last_year = today - timedelta(days=365)
 
-            data["present"] = {
-                "label": "Present Today",
-                "current": attendance_statuses_today["present"],
-                "before": attendance_statuses_yesterday["present"],
-                "growth": round(
-                    (
-                        attendance_statuses_today["present"]
-                        - attendance_statuses_yesterday["present"]
-                    )
-                    / attendance_statuses_yesterday["present"]
-                    * 100,
-                    2,
-                )
-                if attendance_statuses_yesterday["present"]
-                else 0,
-                "period": "Yesterday",
-            }
-            data["absent"] = {
-                "label": "Absent Today",
-                "current": attendance_statuses_today["absent"],
-                "before": attendance_statuses_yesterday["absent"],
-                "growth": round(
-                    (
-                        attendance_statuses_today["absent"]
-                        - attendance_statuses_yesterday["absent"]
-                    )
-                    / attendance_statuses_yesterday["absent"]
-                    * 100,
-                    2,
-                )
-                if attendance_statuses_yesterday["absent"]
-                else 0,
-                "period": "Yesterday",
-            }
-            data["late_arrival"] = {
-                "label": "Late Arrivals",
-                "current": attendance_statuses_today["late"],
-                "before": attendance_statuses_yesterday["late"],
-                "growth": round(
-                    (
-                        attendance_statuses_today["late"]
-                        - attendance_statuses_yesterday["late"]
-                    )
-                    / attendance_statuses_yesterday["late"]
-                    * 100,
-                    2,
-                )
-                if attendance_statuses_yesterday["late"]
-                else 0,
-                "period": "Yesterday",
-                "isNegativeGood": True,
-            }
+        HrEmployee = request.env["hr.employee"].sudo().with_company(PARENT_COMPANY_ID)
 
-            employee_aged_report = request.env["hr.employee"]._get_emloyee_aged_report(
-                date_from=date.today() - timedelta(days=365)
+        if role in ("admin", "manager"):
+            # An admin sees the whole company, a manager only their own
+            # department tree.
+            employee_domain = []
+            if role == "manager":
+                if employee_id.department_id:
+                    employee_domain = [
+                        (
+                            "department_id",
+                            "in",
+                            self._get_child_department_ids(
+                                employee_id.department_id.id
+                            ),
+                        )
+                    ]
+                else:
+                    employee_domain = [("id", "=", employee_id.id)]
+
+            attendance_statuses_today = HrEmployee._get_employee_status_at_date(
+                date=today, employee_domain=employee_domain
+            )
+            attendance_statuses_yesterday = HrEmployee._get_employee_status_at_date(
+                date=yesterday, employee_domain=employee_domain
             )
 
-            data["employee"] = {
-                "label": "Employee",
-                "current": employee_aged_report["current"],
-                "growth": round(
-                    (employee_aged_report["hired"] - employee_aged_report["fired"])
-                    / employee_aged_report["current"]
-                    * 100,
-                    2,
+            employee_aged_report = HrEmployee._get_emloyee_aged_report(
+                date_from=last_year, domain=employee_domain
+            )
+
+            data["present"] = self._growth_card(
+                "Present Today",
+                attendance_statuses_today["present"],
+                attendance_statuses_yesterday["present"],
+                "Yesterday",
+            )
+            data["absent"] = self._growth_card(
+                "Absent Today",
+                attendance_statuses_today["absent"],
+                attendance_statuses_yesterday["absent"],
+                "Yesterday",
+            )
+            data["employee"] = self._growth_card(
+                "Employee",
+                employee_aged_report["current"],
+                # Head count a year ago, derived from the net movement since.
+                employee_aged_report["current"]
+                - (employee_aged_report["hired"] - employee_aged_report["fired"]),
+                COMPARISON_PERIOD[365],
+            )
+
+            data["leave"] = {
+                "label": "Leave",
+                "current": attendance_statuses_today["leave"],
+            }
+
+        else:
+            # Regular employee: the same cards, scoped to their own record.
+            if not employee_id:
+                return {
+                    "status": 400,
+                    "data": None,
+                    "message": "No employee profile is linked to your account !!",
+                }
+
+            employee_domain = [("employee_id", "=", employee_id.id)]
+
+            data["present"] = {
+                "label": "Present(days)",
+                # Grouped per day so several check-ins in a day count once.
+                **self._get_model_comparison(
+                    "hr.attendance",
+                    30,
+                    domain=employee_domain,
+                    groupby=["date:day"],
+                    count_groups=True,
                 ),
-                "period": COMPARISON_PERIOD[365],
             }
             data["leaves"] = {
                 "label": "Leaves(days)",
@@ -193,58 +255,9 @@ class HRDashboardController(http.Controller):
                     "hr.leave",
                     60,
                     date_field="date_from",
-                    groupby=["holiday_status_id"],
-                    domain=[("state", "=", "validate")],
+                    domain=employee_domain + [("state", "=", "validate")],
                     aggregates=["number_of_days:sum"],
                 ),
-            }
-
-            data["timesheet"] = {
-                "label": "Timesheet(hrs)",
-                **self._get_model_comparison(
-                    "account.analytic.line",
-                    30,
-                    groupby=["project_id"],
-                    aggregates=["unit_amount:sum"],
-                ),
-            }
-        elif role == "manager":
-            attendance_statuses_today = (
-                request.env["hr.employee"]
-                .sudo()
-                .with_company(PARENT_COMPANY_ID)
-                ._get_employee_status_at_date(
-                    date=date.today(),
-                    employee_domain=[],
-                )
-            )
-
-            employee_aged_report = (
-                request.env["hr.employee"]
-                .sudo()
-                .with_company(PARENT_COMPANY_ID)
-                ._get_emloyee_aged_report(
-                    date_from=date.today() - timedelta(days=365),
-                    domain=[],
-                )
-            )
-
-            data["present"] = {
-                "label": "Present Today",
-                "current": attendance_statuses_today["present"],
-            }
-            data["absent"] = {
-                "label": "Absent Today",
-                "current": attendance_statuses_today["absent"],
-            }
-
-            data["employee"] = {
-                "label": "Employee",
-                "current": employee_aged_report["current"],
-            }
-            data["leave"] = {
-                "label": "Leave",
-                "current": attendance_statuses_today["leave"],
             }
 
         return {
@@ -266,7 +279,7 @@ class HRDashboardController(http.Controller):
 
         attendance_statuses_today = request.env[
             "hr.employee"
-        ]._get_employee_status_at_date(date=date.today())
+        ]._get_employee_status_at_date(date=self._get_local_today())
 
         data = dict()
         data = {
@@ -275,7 +288,6 @@ class HRDashboardController(http.Controller):
                 **self._get_model_comparison(
                     "account.analytic.line",
                     1,
-                    groupby=["project_id"],
                     aggregates=["unit_amount:sum"],
                 ),
             },
@@ -286,17 +298,6 @@ class HRDashboardController(http.Controller):
             "data": data,
             "message": "data",
         }
-
-    def _get_child_department_ids(self, department_id):
-        """Get all child department IDs recursively for a given department."""
-        department = request.env["hr.department"].sudo().browse(int(department_id))
-        child_departments = department.child_ids
-        all_department_ids = [department_id]
-
-        for child_dept in child_departments:
-            all_department_ids.extend(self._get_child_department_ids(child_dept.id))
-
-        return all_department_ids
 
     @http.route(
         "/mobile/api/employee",

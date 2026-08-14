@@ -7,7 +7,12 @@ import textwrap
 
 class AnnocementController(Controller):
     @route(
-        "/mobile/api/notices", type="json", auth="public", csrf=False, method=["POST"]
+        "/mobile/api/notices",
+        type="json",
+        auth="public",
+        csrf=False,
+        methods=["POST"],
+        cors="*",
     )
     @login_required()
     def get_all_annoucment(self, **kw):
@@ -102,7 +107,14 @@ class AnnocementController(Controller):
             "message": "annoucement",
         }
 
-    @route("/mobile/api/news", type="json", auth="public", csrf=False, method=["POST"])
+    @route(
+        "/mobile/api/news",
+        type="json",
+        auth="public",
+        csrf=False,
+        methods=["POST"],
+        cors="*",
+    )
     def get_all_news(self, **kw):
 
         data = []

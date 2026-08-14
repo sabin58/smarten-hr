@@ -1,10 +1,13 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 
 import pytz
+from dateutil.relativedelta import relativedelta
 from odoo import SUPERUSER_ID
 from odoo.addons.mobile_auth.controllers.auth import login_required
 from odoo.http import request, Controller, route
 from odoo.exceptions import UserError, ValidationError
+
+from .message import get_record_messages
 
 
 TIME_OFF_SPECIFICATIONS = {
@@ -44,6 +47,198 @@ class TimeOffController(Controller):
             all_department_ids.extend(self._get_child_department_ids(child_dept.id))
 
         return all_department_ids
+
+    def _get_dashboard_employee(self, parent_company_id, **kwargs):
+        """The employee the calendar is drawn for.
+
+        The own one, unless a manager asks for somebody else, the same way
+        /mobile/api/timeoff/types picks it.
+        """
+        employee = request.env.user.sudo().with_company(parent_company_id).employee_id
+
+        if kwargs.get("employee_id") and request.env.user.hr_app_role != "user":
+            employee = (
+                request.env["hr.employee"]
+                .sudo()
+                .with_company(parent_company_id)
+                .browse(int(kwargs["employee_id"]))
+                .exists()
+            )
+
+        return employee
+
+    def _get_dashboard_period(self, **kwargs):
+        """The period the calendar shows, a month around today by default."""
+        date_from = kwargs.get("date_from")
+        date_to = kwargs.get("date_to")
+
+        first_of_month = date.today().replace(day=1)
+
+        date_from = (
+            datetime.strptime(date_from, "%Y-%m-%d").date()
+            if date_from
+            else first_of_month
+        )
+        date_to = (
+            datetime.strptime(date_to, "%Y-%m-%d").date()
+            if date_to
+            else date_from + relativedelta(months=1, days=-1)
+        )
+
+        return date_from, date_to
+
+    def _get_public_holidays(self, employee, date_from, date_to):
+        """Company wide time off, as whole days in the timezone of the employee.
+
+        Stored as utc datetimes on resource.calendar.leaves, so the bounds are
+        widened to the whole day before searching and the result is turned
+        back into plain dates the calendar of the app can match on.
+        """
+        holidays = employee._get_public_holidays(
+            datetime.combine(date_from, time.min),
+            datetime.combine(date_to, time.max),
+        ).sorted("date_from")
+
+        employee_tz = pytz.timezone(employee._get_tz() or "UTC")
+
+        def to_local_date(value):
+            return pytz.utc.localize(value).astimezone(employee_tz).date()
+
+        return [
+            {
+                "id": holiday.id,
+                "name": holiday.name,
+                "date_from": to_local_date(holiday.date_from),
+                "date_to": to_local_date(holiday.date_to),
+            }
+            for holiday in holidays
+        ]
+
+    def _get_mandatory_days(self, employee, date_from, date_to):
+        """Days the employee is expected in, no time off allowed on them."""
+        mandatory_days = employee._get_mandatory_days(date_from, date_to).sorted(
+            "start_date"
+        )
+
+        return [
+            {
+                "id": mandatory_day.id,
+                "name": mandatory_day.name,
+                "date_from": mandatory_day.start_date,
+                "date_to": mandatory_day.end_date,
+                "color": mandatory_day.color,
+            }
+            for mandatory_day in mandatory_days
+        ]
+
+    @route(
+        "/mobile/api/timeoff/dashboard",
+        type="json",
+        auth="public",
+        csrf=False,
+        cors="*",
+    )
+    @login_required()
+    def get_timeoff_dashboard(self, **kwargs):
+        """Everything the time off calendar of the app draws for one period.
+
+        Public holidays, mandatory days, the days the employee does not work
+        and their own leaves, all for the same range, so the screen is built
+        from a single call.
+        """
+        PARENT_COMPANY_ID = request.env.company.parent_id.id or request.env.company.id
+
+        employee = self._get_dashboard_employee(PARENT_COMPANY_ID, **kwargs)
+
+        if not employee:
+            return {
+                "status": 400,
+                "data": None,
+                "message": "Employee not found for this user",
+            }
+
+        try:
+            date_from, date_to = self._get_dashboard_period(**kwargs)
+        except ValueError:
+            return {
+                "status": 400,
+                "data": None,
+                "message": "Invalid date format. Use YYYY-MM-DD",
+            }
+
+        if date_from > date_to:
+            return {
+                "status": 400,
+                "data": None,
+                "message": "Start date cannot be after end date",
+            }
+
+        # Portal users have no read access on any of the models below, so
+        # everything is read as superuser from here on.
+        employee = employee.sudo().with_company(PARENT_COMPANY_ID)
+
+        # A mapping of every day of the period to whether it is worked, only
+        # the days off are kept. The override of hr_contract parses its
+        # arguments itself, so the bounds are handed over as datetime strings
+        # the same way the calendar of the backend sends them.
+        #
+        # Run as superuser rather than with sudo(): that same override reads
+        # the working hours back with sudo(False), which hands the rights to
+        # the portal user again and makes it fail on resource.calendar.
+        unusual_days = employee.with_user(SUPERUSER_ID)._get_unusual_days(
+            datetime.combine(date_from, time.min).strftime("%Y-%m-%d %H:%M:%S"),
+            datetime.combine(date_to, time.max).strftime("%Y-%m-%d %H:%M:%S"),
+        )
+        unusual_days = sorted(
+            day for day, is_unusual in unusual_days.items() if is_unusual
+        )
+
+        leaves = (
+            request.env["hr.leave"]
+            .sudo()
+            .with_company(PARENT_COMPANY_ID)
+            .search(
+                [
+                    ("employee_id", "=", employee.id),
+                    ("request_date_from", "<=", date_to),
+                    ("request_date_to", ">=", date_from),
+                ],
+                order="request_date_from",
+            )
+            .web_read(TIME_OFF_SPECIFICATIONS)
+        )
+
+        # The counter above the calendar: allocations the employee asked for
+        # and that nobody has decided on yet.
+        pending_allocations = (
+            request.env["hr.leave.allocation"]
+            .sudo()
+            .search_count(
+                [("employee_id", "=", employee.id), ("state", "=", "confirm")]
+            )
+        )
+
+        return {
+            "status": 200,
+            "data": {
+                "employee_id": {
+                    "id": employee.id,
+                    "display_name": employee.display_name,
+                },
+                "date_from": date_from,
+                "date_to": date_to,
+                "public_holidays": self._get_public_holidays(
+                    employee, date_from, date_to
+                ),
+                "mandatory_days": self._get_mandatory_days(
+                    employee, date_from, date_to
+                ),
+                "unusual_days": unusual_days,
+                "leaves": leaves,
+                "pending_allocations": pending_allocations,
+            },
+            "message": "timeoff dashboard",
+        }
 
     @route("/mobile/api/timeoff", type="json", auth="public", csrf=False, cors="*")
     @login_required()
@@ -97,14 +292,21 @@ class TimeOffController(Controller):
     @login_required()
     def get_timeoff_detail(self, id, **kwargs):
 
-        leave = request.env["hr.leave"].sudo().browse(id)
+        message_limit = kwargs.get("message_limit") or 80
+
+        # browse() alone is always truthy, so a missing id has to be caught
+        # with exists() for the 404 below to ever trigger.
+        leave = request.env["hr.leave"].sudo().browse(id).exists()
 
         if not leave:
             return {"status": 404, "data": None, "message": "Time off not found!! "}
 
+        data = leave.web_read(TIME_OFF_SPECIFICATIONS)[0]
+        data["messages"] = get_record_messages("hr.leave", leave.id, message_limit)
+
         return {
             "status": 200,
-            "data": leave.web_read(TIME_OFF_SPECIFICATIONS)[0],
+            "data": data,
             "message": "timeoff",
         }
 
