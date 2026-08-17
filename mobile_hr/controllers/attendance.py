@@ -1,4 +1,6 @@
+from odoo import fields
 from odoo.addons.mobile_auth.controllers.auth import login_required
+from odoo.exceptions import UserError, ValidationError
 from odoo.http import request, Controller, route
 from datetime import datetime, time, timedelta
 
@@ -10,8 +12,159 @@ ATTENDANCE_SPECIFICATIONS = {
     "date": {},
 }
 
+# Keys the app may send along with a punch. ``_attendance_action_change``
+# prefixes each of them with ``in_``/``out_``, so only keys that exist on both
+# sides of hr.attendance may be forwarded.
+GEO_KEYS = ("latitude", "longitude", "city", "country_name")
+
 
 class AttendanceController(Controller):
+    def _get_parent_company_id(self):
+        return request.env.company.parent_id.id or request.env.company.id
+
+    def _get_my_employee(self):
+        """The employee behind the token.
+
+        sudo: mobile app users may be portal users, who have no ACL on
+        hr.employee nor hr.attendance.
+        """
+        return (
+            request.env.user.sudo()
+            .with_company(self._get_parent_company_id())
+            .employee_id
+        )
+
+    def _get_geo_information(self, kwargs):
+        geo_information = {
+            key: kwargs[key] for key in GEO_KEYS if kwargs.get(key) is not None
+        }
+        if geo_information:
+            geo_information["mode"] = "manual"
+        return geo_information or None
+
+    def _get_attendance_status(self, employee):
+        """Punch state of ``employee`` plus what the app shows next to it.
+
+        ``attendance_state`` follows the last attendance whenever it happened,
+        the way Odoo does, while the hours are for today only.
+        """
+        today = fields.Date.context_today(employee)
+
+        attendances = (
+            request.env["hr.attendance"]
+            .sudo()
+            .search(
+                [("employee_id", "=", employee.id), ("date", "=", today)],
+                order="check_in asc",
+            )
+        )
+
+        # worked_hours stays 0 until check_out is written, so a running
+        # attendance has to be counted against now.
+        now = fields.Datetime.now()
+        worked_hours = sum(
+            attendance.worked_hours
+            if attendance.check_out
+            else (now - attendance.check_in).total_seconds() / 3600
+            for attendance in attendances
+        )
+
+        last_attendance = employee.last_attendance_id
+
+        return {
+            "employee_id": employee.id,
+            "employee_name": employee.display_name,
+            "date": fields.Date.to_string(today),
+            "attendance_state": employee.attendance_state,
+            "attendance_id": last_attendance.id or False,
+            "check_in": fields.Datetime.to_string(last_attendance.check_in),
+            "check_out": fields.Datetime.to_string(last_attendance.check_out),
+            "worked_hours_today": round(worked_hours, 2),
+            "attendance_count_today": len(attendances),
+        }
+
+    @route(
+        "/mobile/api/attendance-status", type="json", auth="public", csrf=False, cors="*"
+    )
+    @login_required()
+    def get_attendance_status(self, **kwargs):
+        employee = self._get_my_employee()
+
+        if not employee:
+            return {
+                "status": 400,
+                "data": None,
+                "message": "No employee profile is linked to your account !!",
+            }
+
+        return {
+            "status": 200,
+            "data": self._get_attendance_status(employee),
+            "message": "attendance status",
+        }
+
+    @route("/mobile/api/check-in", type="json", auth="public", csrf=False, cors="*")
+    @login_required()
+    def check_in(self, **kwargs):
+        employee = self._get_my_employee()
+
+        if not employee:
+            return {
+                "status": 400,
+                "data": None,
+                "message": "No employee profile is linked to your account !!",
+            }
+
+        # The toggle in _attendance_action_change would check the employee out
+        # instead of refusing, so the state is checked here first.
+        if employee.attendance_state == "checked_in":
+            return {
+                "status": 400,
+                "data": self._get_attendance_status(employee),
+                "message": "You are already checked in !!",
+            }
+
+        try:
+            employee._attendance_action_change(self._get_geo_information(kwargs))
+        except (UserError, ValidationError) as error:
+            return {"status": 400, "data": None, "message": error.args[0]}
+
+        return {
+            "status": 200,
+            "data": self._get_attendance_status(employee),
+            "message": "checked in",
+        }
+
+    @route("/mobile/api/check-out", type="json", auth="public", csrf=False, cors="*")
+    @login_required()
+    def check_out(self, **kwargs):
+        employee = self._get_my_employee()
+
+        if not employee:
+            return {
+                "status": 400,
+                "data": None,
+                "message": "No employee profile is linked to your account !!",
+            }
+
+        if employee.attendance_state != "checked_in":
+            return {
+                "status": 400,
+                "data": self._get_attendance_status(employee),
+                "message": "You are not checked in !!",
+            }
+
+        try:
+            employee._attendance_action_change(self._get_geo_information(kwargs))
+        except (UserError, ValidationError) as error:
+            return {"status": 400, "data": None, "message": error.args[0]}
+
+        return {
+            "status": 200,
+            "data": self._get_attendance_status(employee),
+            "message": "checked out",
+        }
+
     @route(
         "/mobile/api/my-attendances", type="json", auth="public", csrf=False, cors="*"
     )
