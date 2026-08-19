@@ -9,6 +9,20 @@ from odoo.exceptions import UserError, ValidationError
 
 from .message import get_record_messages
 
+COLORS = [
+    "#a2a2a2",
+    "#ee2d2d",
+    "#dc8534",
+    "#e8bb1d",
+    "#5794dd",
+    "#9f628f",
+    "#db8865",
+    "#41a9a2",
+    "#304be0",
+    "#ee2f8a",
+    "#61c36e",
+    "#9872e",
+]
 
 TIME_OFF_SPECIFICATIONS = {
     "id": {},
@@ -126,7 +140,7 @@ class TimeOffController(Controller):
                 "name": mandatory_day.name,
                 "date_from": mandatory_day.start_date,
                 "date_to": mandatory_day.end_date,
-                "color": mandatory_day.color,
+                "color": COLORS[mandatory_day.color],
             }
             for mandatory_day in mandatory_days
         ]
@@ -728,7 +742,6 @@ class TimeOffController(Controller):
         try:
             leave.sudo().action_cancel()
             request.env.cr.commit()
-
             return {
                 "status": 200,
                 "data": leave.web_read(TIME_OFF_SPECIFICATIONS)[0],

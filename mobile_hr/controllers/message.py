@@ -47,6 +47,7 @@ def get_record_messages(model, res_id, limit):
                 "author_id": {
                     "id": message.author_id.id,
                     "display_name": message.author_id.display_name,
+                    "name": message.author_id.name,
                     "image": generate_image(
                         "res.partner",
                         "avatar_256",
