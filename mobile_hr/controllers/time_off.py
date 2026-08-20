@@ -6,7 +6,7 @@ from odoo import SUPERUSER_ID
 from odoo.addons.mobile_auth.controllers.auth import login_required
 from odoo.http import request, Controller, route
 from odoo.exceptions import UserError, ValidationError
-
+from nepali_datetime import datetime as nepali_datetime
 from .message import get_record_messages
 
 COLORS = [
@@ -83,6 +83,21 @@ class TimeOffController(Controller):
 
     def _get_dashboard_period(self, **kwargs):
         """The period the calendar shows, a month around today by default."""
+
+        year = kwargs.get("year")
+        month = kwargs.get("month")
+        if kwargs.get("month") and kwargs.get("year"):
+            start_nepali_date = nepali_datetime.date(int(year), int(month), 1)
+            if month == 12:
+                month = 0
+                year = year + 1
+            end_nepali_date = nepali_datetime.date(int(year), int(month + 1), 1)
+
+            return (
+                start_nepali_date.to_datetime_date(),
+                end_nepali_date.to_datetime_date(),
+            )
+
         date_from = kwargs.get("date_from")
         date_to = kwargs.get("date_to")
 

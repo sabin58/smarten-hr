@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="approval_category_data_attendance" model="approval.category">
+            <field name="name">Attendance Request</field>
+            <field name="description">Request a correction or a validation of an attendance</field>
+            <field name="approval_type">attendance</field>
+            <field name="sequence">90</field>
+            <field name="has_date">no</field>
+            <field name="has_period">required</field>
+            <field name="requirer_document">optional</field>
+            <field name="manager_approval">approver</field>
+            <field name="automated_sequence" eval="True"/>
+            <field name="sequence_code">ATT</field>
+        </record>
+
+        <record id="approval_category_data_advance_salary" model="approval.category">
+            <field name="name">Advance Salary</field>
+            <field name="description">Request an advance on the salary</field>
+            <field name="approval_type">advance_salary</field>
+            <field name="sequence">91</field>
+            <field name="has_amount">required</field>
+            <field name="requirer_document">optional</field>
+            <field name="manager_approval">approver</field>
+            <field name="automated_sequence" eval="True"/>
+            <field name="sequence_code">ADV</field>
+        </record>
+    </data>
+</odoo>

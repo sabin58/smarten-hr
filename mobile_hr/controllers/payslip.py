@@ -1,6 +1,8 @@
 import base64
+
 from odoo.addons.mobile_auth.controllers.auth import login_required
 from odoo.http import request, Controller, route
+
 
 PAYSLIP_SPECIFICATIONS = {
     "number": {},
@@ -10,6 +12,18 @@ PAYSLIP_SPECIFICATIONS = {
     "net_wage": {},
     "date_from": {},
     "date_to": {},
+    "state": {},
+}
+PAYSLIP_DETAIL_SPECIFICATIONS = {
+    "number": {},
+    "payslip_run_id": {"fields": {"display_name": {}}},
+    "employee_id": {"fields": {"display_name": {}}},
+    "display_name": {},
+    "net_wage": {},
+    "date_from": {},
+    "date_to": {},
+    "state": {},
+    "line_ids": {"fields": {"name": {}, "total": {}}},
 }
 
 
@@ -61,3 +75,26 @@ class PayslipController(Controller):
             ._render_qweb_pdf("hr_payroll.report_payslip_lang", [int(payroll_id)])
         )
         return {"status": 200, "data": {"pdf": base64.b64encode(pdf[0])}}
+
+    @route(
+        "/mobile/api/my-payslip/<int:payroll_id>",
+        type="json",
+        auth="public",
+        csrf=False,
+        cors="*",
+    )
+    @login_required()
+    def my_payslip_detail(self, payroll_id, **kwargs):
+        PARENT_COMPANY_ID = request.env.company.parent_id.id or request.env.company.id
+        employee_id = (
+            request.env.user.sudo().with_company(PARENT_COMPANY_ID).employee_id
+        )
+        payslip = request.env["hr.payslip"].sudo().browse(payroll_id)
+
+        if not payslip or payslip.employee_id != employee_id:
+            return {"status": 404, "data": None, "message": "Payslip not found !!"}
+        data = payslip.sudo().web_read(
+            PAYSLIP_DETAIL_SPECIFICATIONS,
+        )[0]
+
+        return {"status": 200, "data": data, "message": "Payslip Detail"}

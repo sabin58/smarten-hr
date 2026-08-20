@@ -18,7 +18,13 @@
         "hr_payroll",
         "hr_attendance",
         "hr_expense",
+        "approvals",
     ],
-    "data": ["security/ir.model.access.csv", "views/external_news.xml"],
+    "data": [
+        "security/ir.model.access.csv",
+        "data/approval_category_data.xml",
+        "views/external_news.xml",
+        "views/approval_category_views.xml",
+    ],
     "assets": {},
 }
