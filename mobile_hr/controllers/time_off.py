@@ -6,7 +6,7 @@ from odoo import SUPERUSER_ID
 from odoo.addons.mobile_auth.controllers.auth import login_required
 from odoo.http import request, Controller, route
 from odoo.exceptions import UserError, ValidationError
-from nepali_datetime import datetime as nepali_datetime
+import nepali_datetime
 from .message import get_record_messages
 
 COLORS = [
