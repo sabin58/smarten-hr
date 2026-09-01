@@ -78,7 +78,11 @@ class AttendanceController(Controller):
         }
 
     @route(
-        "/mobile/api/attendance-status", type="json", auth="public", csrf=False, cors="*"
+        "/mobile/api/attendance-status",
+        type="json",
+        auth="public",
+        csrf=False,
+        cors="*",
     )
     @login_required()
     def get_attendance_status(self, **kwargs):
@@ -303,7 +307,7 @@ class AttendanceController(Controller):
 
             day += timedelta(days=1)
 
-        return {"status": 200, "data": data, "message": "attendance"}
+        return {"status": 200, "data": {"records": data}, "message": "attendance"}
 
     @route(
         "/mobile/api/mark-present/<int:employee_id>",
