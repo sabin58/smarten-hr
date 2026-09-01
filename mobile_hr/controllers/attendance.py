@@ -2,15 +2,9 @@ from odoo import fields
 from odoo.addons.mobile_auth.controllers.auth import login_required
 from odoo.exceptions import UserError, ValidationError
 from odoo.http import request, Controller, route
-from datetime import datetime, time, timedelta
+from datetime import date as date_type, datetime, time, timedelta
 
-ATTENDANCE_SPECIFICATIONS = {
-    "check_in": {},
-    "check_out": {},
-    "employee_id": {"fields": {"display_name": {}}},
-    "worked_hours": {"fields": {"display_name": {}}},
-    "date": {},
-}
+import pytz
 
 # Keys the app may send along with a punch. ``_attendance_action_change``
 # prefixes each of them with ``in_``/``out_``, so only keys that exist on both
@@ -165,41 +159,149 @@ class AttendanceController(Controller):
             "message": "checked out",
         }
 
+    def _parse_date(self, value):
+        """``value`` as a date, accepting both dates and datetimes from the app."""
+        if isinstance(value, date_type) and not isinstance(value, datetime):
+            return value
+        if isinstance(value, datetime):
+            return value.date()
+        return datetime.strptime(value[:10], "%Y-%m-%d").date()
+
+    def _get_working_weekdays(self, employee):
+        """Weekday numbers (Monday=0) the employee is expected to work on.
+
+        Anything outside of them is reported as a weekend, so a calendar
+        without working hours falls back to Monday-Friday.
+        """
+        calendar = (
+            employee.resource_calendar_id or employee.company_id.resource_calendar_id
+        )
+        weekdays = {int(slot.dayofweek) for slot in calendar.attendance_ids}
+        return weekdays or set(range(5))
+
+    def _get_public_holiday_dates(self, employee, date_from, date_to):
+        """Every date in the range covered by a company wide time off.
+
+        resource.calendar.leaves holds utc datetimes, so the bounds are widened
+        to whole days and the result is turned back into local dates.
+        """
+        holidays = employee._get_public_holidays(
+            datetime.combine(date_from, time.min),
+            datetime.combine(date_to, time.max),
+        )
+
+        employee_tz = pytz.timezone(employee._get_tz() or "UTC")
+
+        def to_local_date(value):
+            return pytz.utc.localize(value).astimezone(employee_tz).date()
+
+        holiday_dates = set()
+        for holiday in holidays:
+            day = to_local_date(holiday.date_from)
+            last_day = to_local_date(holiday.date_to)
+            while day <= last_day:
+                holiday_dates.add(day)
+                day += timedelta(days=1)
+        return holiday_dates
+
     @route(
         "/mobile/api/my-attendances", type="json", auth="public", csrf=False, cors="*"
     )
     @login_required()
     def get_my_attendance(self, **kwargs):
-        PARENT_COMPANY_ID = request.env.company.parent_id.id or request.env.company.id
+        """One entry per calendar day of the requested range.
 
-        employee_id = (
-            request.env.user.sudo().with_company(PARENT_COMPANY_ID).employee_id
+        The app draws a calendar, so every day is returned - even the ones
+        without an attendance - qualified as present, absent, holiday or
+        weekend. Days in the future are left out, they are not absences yet.
+        """
+        employee = self._get_my_employee()
+
+        if not employee:
+            return {
+                "status": 400,
+                "data": None,
+                "message": "No employee profile is linked to your account !!",
+            }
+
+        today = fields.Date.context_today(employee)
+
+        date_from = (
+            self._parse_date(kwargs["startDate"])
+            if kwargs.get("startDate")
+            else today.replace(day=1)
         )
+        date_to = (
+            self._parse_date(kwargs["endDate"]) if kwargs.get("endDate") else today
+        )
+        # No day is absent before it is over.
+        date_to = min(date_to, today)
 
-        limit = kwargs.get("limit") or 80
-        page = kwargs.get("page") or 1
+        if date_to < date_from:
+            return {"status": 200, "data": [], "message": "attendance"}
 
-        # data = []
-        domain = [("employee_id", "=", employee_id.id)]
-
-        if kwargs.get("startDate"):
-            domain.append(("date", ">=", kwargs.get("startDate")))
-
-        if kwargs.get("endDate"):
-            domain.append(("date", "<=", kwargs.get("endDate")))
-
-        data = (
+        attendances = (
             request.env["hr.attendance"]
             .sudo()
-            .with_company(PARENT_COMPANY_ID)
-            .web_search_read(
-                domain,
-                ATTENDANCE_SPECIFICATIONS,
-                offset=limit * (page - 1),
-                limit=limit,
-                order="date desc",
+            .with_company(self._get_parent_company_id())
+            .search(
+                [
+                    ("employee_id", "=", employee.id),
+                    ("date", ">=", date_from),
+                    ("date", "<=", date_to),
+                ],
+                order="check_in asc",
             )
         )
+
+        # A day may hold several punches, the app shows the span of the day.
+        attendances_by_date = {}
+        for attendance in attendances:
+            attendances_by_date.setdefault(attendance.date, []).append(attendance)
+
+        holiday_dates = self._get_public_holiday_dates(employee, date_from, date_to)
+        working_weekdays = self._get_working_weekdays(employee)
+
+        data = []
+        day = date_from
+        while day <= date_to:
+            day_attendances = attendances_by_date.get(day)
+
+            if day_attendances:
+                data.append(
+                    {
+                        "date": fields.Date.to_string(day),
+                        "type": "present",
+                        "check_in": fields.Datetime.to_string(
+                            day_attendances[0].check_in
+                        ),
+                        "check_out": fields.Datetime.to_string(
+                            day_attendances[-1].check_out
+                        ),
+                        "worked_hours": round(
+                            sum(a.worked_hours for a in day_attendances), 2
+                        ),
+                    }
+                )
+            else:
+                if day in holiday_dates:
+                    day_type = "holiday"
+                elif day.weekday() not in working_weekdays:
+                    day_type = "weekend"
+                else:
+                    day_type = "absent"
+
+                data.append(
+                    {
+                        "date": fields.Date.to_string(day),
+                        "type": day_type,
+                        "check_in": False,
+                        "check_out": False,
+                        "worked_hours": 0.0,
+                    }
+                )
+
+            day += timedelta(days=1)
 
         return {"status": 200, "data": data, "message": "attendance"}
 
