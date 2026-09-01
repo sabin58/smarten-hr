@@ -172,7 +172,7 @@ class HRDashboardController(http.Controller):
 
         HrEmployee = request.env["hr.employee"].sudo().with_company(PARENT_COMPANY_ID)
 
-        if role in ("admin", "manager"):
+        if role in ("admin", "manager", "user"):
             # An admin sees the whole company, a manager only their own
             # department tree.
             employee_domain = []

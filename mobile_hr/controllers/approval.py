@@ -130,26 +130,26 @@ class ApprovalController(Controller):
         user = request.env.user
         domain = [("approval_type", "in", MOBILE_APPROVAL_TYPES)]
 
-        if user.hr_app_role == "admin":
-            if kwargs.get("department_id"):
-                domain.append(
-                    (
-                        "request_owner_id.employee_ids.department_id",
-                        "=",
-                        int(kwargs["department_id"]),
-                    )
-                )
-            return domain
+        # if user.hr_app_role == "admin":
+        #     if kwargs.get("department_id"):
+        #         domain.append(
+        #             (
+        #                 "request_owner_id.employee_ids.department_id",
+        #                 "=",
+        #                 int(kwargs["department_id"]),
+        #             )
+        #         )
+        #     return domain
 
-        if user.hr_app_role == "manager":
-            department = self._get_my_employee().department_id
-            return domain + [
-                "|",
-                "|",
-                ("request_owner_id", "=", user.id),
-                ("approver_ids.user_id", "=", user.id),
-                ("request_owner_id.employee_ids.department_id", "=", department.id),
-            ]
+        # if user.hr_app_role == "manager":
+        #     department = self._get_my_employee().department_id
+        #     return domain + [
+        #         "|",
+        #         "|",
+        #         ("request_owner_id", "=", user.id),
+        #         ("approver_ids.user_id", "=", user.id),
+        #         ("request_owner_id.employee_ids.department_id", "=", department.id),
+        #     ]
 
         return domain + [
             "|",
