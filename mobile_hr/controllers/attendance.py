@@ -294,7 +294,7 @@ class AttendanceController(Controller):
                     day_type = "weekend"
                 else:
                     day_type = "absent"
-                if day <= today or date_type != "absent":
+                if day <= today or day_type != "absent":
                     data.append(
                         {
                             "date": fields.Date.to_string(day),
