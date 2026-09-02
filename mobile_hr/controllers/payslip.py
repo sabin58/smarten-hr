@@ -1,6 +1,7 @@
 import base64
 
 from odoo.addons.mobile_auth.controllers.auth import login_required
+from odoo.addons.mobile_auth.utils import get_hr_company_id, get_hr_employee
 from odoo.http import request, Controller, route
 
 
@@ -31,11 +32,9 @@ class PayslipController(Controller):
     @route("/mobile/api/my-payslip", type="json", auth="public", csrf=False, cors="*")
     @login_required()
     def get_my_payslip(self, **kwargs):
-        PARENT_COMPANY_ID = request.env.company.parent_id.id or request.env.company.id
+        PARENT_COMPANY_ID = get_hr_company_id()
 
-        employee_id = (
-            request.env.user.sudo().with_company(PARENT_COMPANY_ID).employee_id
-        )
+        employee_id = get_hr_employee()
         limit = kwargs.get("limit") or 80
         page = kwargs.get("page") or 1
 
@@ -66,7 +65,7 @@ class PayslipController(Controller):
     )
     @login_required()
     def download_payslip(self, payroll_id, **kwargs):
-        PARENT_COMPANY_ID = request.env.company.parent_id.id or request.env.company.id
+        PARENT_COMPANY_ID = get_hr_company_id()
 
         pdf = (
             request.env["ir.actions.report"]
@@ -85,10 +84,7 @@ class PayslipController(Controller):
     )
     @login_required()
     def my_payslip_detail(self, payroll_id, **kwargs):
-        PARENT_COMPANY_ID = request.env.company.parent_id.id or request.env.company.id
-        employee_id = (
-            request.env.user.sudo().with_company(PARENT_COMPANY_ID).employee_id
-        )
+        employee_id = get_hr_employee()
         payslip = request.env["hr.payslip"].sudo().browse(payroll_id)
 
         if not payslip or payslip.employee_id != employee_id:

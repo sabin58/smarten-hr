@@ -2,6 +2,7 @@ import pytz
 from odoo import http
 from odoo.http import request
 from odoo.addons.mobile_auth.controllers.auth import login_required
+from odoo.addons.mobile_auth.utils import get_hr_company_id, get_hr_employee
 from datetime import datetime, timedelta
 
 COMPARISON_PERIOD = {
@@ -160,11 +161,9 @@ class HRDashboardController(http.Controller):
         role = request.env.user.hr_app_role
         data = dict()
 
-        PARENT_COMPANY_ID = request.env.company.parent_id.id or request.env.company.id
+        PARENT_COMPANY_ID = get_hr_company_id()
 
-        employee_id = (
-            request.env.user.sudo().with_company(PARENT_COMPANY_ID).employee_id
-        )
+        employee_id = get_hr_employee()
 
         today = self._get_local_today()
         yesterday = today - timedelta(days=1)
@@ -312,10 +311,10 @@ class HRDashboardController(http.Controller):
 
         state = kw.get("state")
         # department_id = kw.get("department_id")
-        PARENT_COMPANY_ID = request.env.company.parent_id.id or request.env.company.id
+        PARENT_COMPANY_ID = get_hr_company_id()
 
         # employee_id = (
-        #     request.env.user.sudo().with_company(PARENT_COMPANY_ID).employee_id
+        #     get_hr_employee()
         # )
 
         domain = []

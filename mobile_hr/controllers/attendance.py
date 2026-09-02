@@ -1,5 +1,6 @@
 from odoo import fields
 from odoo.addons.mobile_auth.controllers.auth import login_required
+from odoo.addons.mobile_auth.utils import get_hr_company_id, get_hr_employee
 from odoo.exceptions import UserError, ValidationError
 from odoo.http import request, Controller, route
 from datetime import date as date_type, datetime, time, timedelta
@@ -13,21 +14,6 @@ GEO_KEYS = ("latitude", "longitude", "city", "country_name")
 
 
 class AttendanceController(Controller):
-    def _get_parent_company_id(self):
-        return request.env.company.parent_id.id or request.env.company.id
-
-    def _get_my_employee(self):
-        """The employee behind the token.
-
-        sudo: mobile app users may be portal users, who have no ACL on
-        hr.employee nor hr.attendance.
-        """
-        return (
-            request.env.user.sudo()
-            .with_company(self._get_parent_company_id())
-            .employee_id
-        )
-
     def _get_geo_information(self, kwargs):
         geo_information = {
             key: kwargs[key] for key in GEO_KEYS if kwargs.get(key) is not None
@@ -86,7 +72,7 @@ class AttendanceController(Controller):
     )
     @login_required()
     def get_attendance_status(self, **kwargs):
-        employee = self._get_my_employee()
+        employee = get_hr_employee()
 
         if not employee:
             return {
@@ -104,7 +90,7 @@ class AttendanceController(Controller):
     @route("/mobile/api/check-in", type="json", auth="public", csrf=False, cors="*")
     @login_required()
     def check_in(self, **kwargs):
-        employee = self._get_my_employee()
+        employee = get_hr_employee()
 
         if not employee:
             return {
@@ -136,7 +122,7 @@ class AttendanceController(Controller):
     @route("/mobile/api/check-out", type="json", auth="public", csrf=False, cors="*")
     @login_required()
     def check_out(self, **kwargs):
-        employee = self._get_my_employee()
+        employee = get_hr_employee()
 
         if not employee:
             return {
@@ -219,7 +205,7 @@ class AttendanceController(Controller):
         without an attendance - qualified as present, absent, holiday or
         weekend. Days in the future are left out, they are not absences yet.
         """
-        employee = self._get_my_employee()
+        employee = get_hr_employee()
 
         if not employee:
             return {
@@ -247,7 +233,7 @@ class AttendanceController(Controller):
         attendances = (
             request.env["hr.attendance"]
             .sudo()
-            .with_company(self._get_parent_company_id())
+            .with_company(get_hr_company_id())
             .search(
                 [
                     ("employee_id", "=", employee.id),
@@ -318,7 +304,7 @@ class AttendanceController(Controller):
     )
     @login_required()
     def post_attendance(self, employee_id, **kwargs):
-        PARENT_COMPANY_ID = request.env.company.parent_id.id or request.env.company.id
+        PARENT_COMPANY_ID = get_hr_company_id()
 
         if request.env.user.hr_app_role not in ["admin", "manager"]:
             return {

@@ -4,6 +4,7 @@ import pytz
 from dateutil.relativedelta import relativedelta
 from odoo import SUPERUSER_ID
 from odoo.addons.mobile_auth.controllers.auth import login_required
+from odoo.addons.mobile_auth.utils import get_hr_company_id, get_hr_employee
 from odoo.http import request, Controller, route
 from odoo.exceptions import UserError, ValidationError
 import nepali_datetime
@@ -68,7 +69,7 @@ class TimeOffController(Controller):
         The own one, unless a manager asks for somebody else, the same way
         /mobile/api/timeoff/types picks it.
         """
-        employee = request.env.user.sudo().with_company(parent_company_id).employee_id
+        employee = get_hr_employee()
 
         if kwargs.get("employee_id") and request.env.user.hr_app_role != "user":
             employee = (
@@ -175,7 +176,7 @@ class TimeOffController(Controller):
         and their own leaves, all for the same range, so the screen is built
         from a single call.
         """
-        PARENT_COMPANY_ID = request.env.company.parent_id.id or request.env.company.id
+        PARENT_COMPANY_ID = get_hr_company_id()
 
         employee = self._get_dashboard_employee(PARENT_COMPANY_ID, **kwargs)
 
@@ -273,11 +274,9 @@ class TimeOffController(Controller):
     @login_required()
     def get_all_timeoff(self, **kwargs):
 
-        PARENT_COMPANY_ID = request.env.company.parent_id.id or request.env.company.id
+        PARENT_COMPANY_ID = get_hr_company_id()
 
-        employee_id = (
-            request.env.user.sudo().with_company(PARENT_COMPANY_ID).employee_id
-        )
+        employee_id = get_hr_employee()
 
         limit = kwargs.get("limit") or 80
         page = kwargs.get("page") or 1
@@ -348,11 +347,9 @@ class TimeOffController(Controller):
     )
     @login_required()
     def get_profile_dashboard(self, **kwargs):
-        PARENT_COMPANY_ID = request.env.company.parent_id.id or request.env.company.id
+        PARENT_COMPANY_ID = get_hr_company_id()
 
-        employee_id = (
-            request.env.user.sudo().with_company(PARENT_COMPANY_ID).employee_id
-        )
+        employee_id = get_hr_employee()
 
         leaves_data = (
             request.env["hr.leave.type"]
@@ -404,9 +401,9 @@ class TimeOffController(Controller):
     @login_required()
     def get_my_timeoff(self, **kwargs):
 
-        PARENT_COMPANY_ID = request.env.company.parent_id.id or request.env.company.id
+        PARENT_COMPANY_ID = get_hr_company_id()
 
-        employee = request.env.user.sudo().with_company(PARENT_COMPANY_ID).employee_id
+        employee = get_hr_employee()
 
         limit = kwargs.get("limit") or 80
         page = kwargs.get("page") or 1
@@ -437,9 +434,9 @@ class TimeOffController(Controller):
     def get_timeoff_types(self, **kwargs):
         """Get available leave types for the employee"""
         # user = request.env.user
-        PARENT_COMPANY_ID = request.env.company.parent_id.id or request.env.company.id
+        PARENT_COMPANY_ID = get_hr_company_id()
 
-        employee = request.env.user.sudo().with_company(PARENT_COMPANY_ID).employee_id
+        employee = get_hr_employee()
 
         if not employee:
             return {
@@ -504,8 +501,8 @@ class TimeOffController(Controller):
     @login_required()
     def create_timeoff(self, **kwargs):
         """Create a new time off request"""
-        PARENT_COMPANY_ID = request.env.company.parent_id.id or request.env.company.id
-        employee = request.env.user.sudo().with_company(PARENT_COMPANY_ID).employee_id
+        PARENT_COMPANY_ID = get_hr_company_id()
+        employee = get_hr_employee()
 
         if kwargs.get("employee_id") and request.env.user.hr_app_role != "user":
             employee = (
@@ -796,9 +793,7 @@ class TimeOffController(Controller):
                 "message": "Time off request not found",
             }
 
-        PARENT_COMPANY_ID = request.env.company.parent_id.id or request.env.company.id
-
-        employee = request.env.user.sudo().with_company(PARENT_COMPANY_ID).employee_id
+        employee = get_hr_employee()
 
         if employee.id == leave.employee_id.id:
             return {

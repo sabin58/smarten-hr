@@ -1,4 +1,5 @@
 from odoo.addons.mobile_auth.controllers.auth import login_required, generate_image
+from odoo.addons.mobile_auth.utils import get_hr_company_id, get_hr_employee
 from odoo.http import request, Controller, route
 from odoo import fields
 from odoo.tools.mail import html_to_inner_content, html2plaintext
@@ -17,11 +18,9 @@ class AnnocementController(Controller):
     @login_required()
     def get_all_annoucment(self, **kw):
 
-        PARENT_COMPANY_ID = request.env.company.parent_id.id or request.env.company.id
+        PARENT_COMPANY_ID = get_hr_company_id()
 
-        employee_id = (
-            request.env.user.sudo().with_company(PARENT_COMPANY_ID).employee_id
-        )
+        employee_id = get_hr_employee()
         if not employee_id:
             return []
 

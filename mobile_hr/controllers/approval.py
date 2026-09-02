@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 
 from odoo.addons.mobile_auth.controllers.auth import login_required
+from odoo.addons.mobile_auth.utils import get_hr_company_id
 from odoo.exceptions import UserError, ValidationError
 from odoo.http import request, Controller, route
 from odoo.tools.mail import html2plaintext
@@ -90,18 +91,8 @@ def parse_datetime(value, field_label):
 
 
 class ApprovalController(Controller):
-    def _get_parent_company_id(self):
-        return request.env.company.parent_id.id or request.env.company.id
-
-    def _get_my_employee(self):
-        return (
-            request.env.user.sudo()
-            .with_company(self._get_parent_company_id())
-            .employee_id
-        )
-
     def _get_categories(self, approval_type=None):
-        parent_company_id = self._get_parent_company_id()
+        parent_company_id = get_hr_company_id()
 
         domain = [
             (
@@ -123,7 +114,7 @@ class ApprovalController(Controller):
         return (
             request.env["approval.request"]
             .sudo()
-            .with_company(self._get_parent_company_id())
+            .with_company(get_hr_company_id())
         )
 
     def _get_scope_domain(self, **kwargs):
@@ -142,7 +133,7 @@ class ApprovalController(Controller):
         #     return domain
 
         # if user.hr_app_role == "manager":
-        #     department = self._get_my_employee().department_id
+        #     department = get_hr_employee().department_id
         #     return domain + [
         #         "|",
         #         "|",

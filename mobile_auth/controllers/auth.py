@@ -7,6 +7,7 @@ import logging
 
 from odoo.tools import json_default
 from . import constant
+from ..utils import get_hr_employee
 import base64
 import uuid
 import functools
@@ -439,11 +440,7 @@ class MobileAuth(http.Controller):
     @login_required()
     def get_hr_profile(self, **kw):
 
-        PARENT_COMPANY_ID = request.env.company.parent_id.id or request.env.company.id
-
-        employee_id = (
-            request.env.user.sudo().with_company(PARENT_COMPANY_ID).employee_id
-        )
+        employee_id = get_hr_employee()
         user = kw["user"].read(USER_READ_FIELDS)[0]
 
         if employee_id.image_256:

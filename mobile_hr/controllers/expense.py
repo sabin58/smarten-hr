@@ -1,6 +1,7 @@
 import base64
 
 from odoo.addons.mobile_auth.controllers.auth import login_required, make_response
+from odoo.addons.mobile_auth.utils import get_hr_employee
 from odoo.exceptions import UserError, ValidationError
 from odoo.http import request, Controller, route
 
@@ -31,10 +32,6 @@ EXPENSE_SPECIFICATIONS = {
 
 
 class ExpenseController(Controller):
-    def _get_employee(self):
-        parent_company_id = request.env.company.parent_id.id or request.env.company.id
-        return request.env.user.sudo().with_company(parent_company_id).employee_id
-
     def _serialize_attachments(self, attachments):
         """Receipt metadata plus a url the app can load straight into an image."""
         base_url = request.env["ir.config_parameter"].sudo().get_base_url()
@@ -181,7 +178,7 @@ class ExpenseController(Controller):
         if not name:
             return {"status": 400, "data": None, "message": "Description is required"}
 
-        employee = self._get_employee()
+        employee = get_hr_employee()
 
         if not employee:
             return {
@@ -279,7 +276,7 @@ class ExpenseController(Controller):
             if not state:
                 domain.append(("state", "=", "submitted"))
         else:
-            employee = self._get_employee()
+            employee = get_hr_employee()
 
             if not employee:
                 return {
@@ -326,7 +323,7 @@ class ExpenseController(Controller):
         expense = request.env["hr.expense"].sudo().browse(expense_id).exists()
 
         if not expense or not (
-            expense.employee_id == self._get_employee() or self._is_approver(expense)
+            expense.employee_id == get_hr_employee() or self._is_approver(expense)
         ):
             return {
                 "status": 404,
