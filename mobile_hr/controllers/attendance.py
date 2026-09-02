@@ -110,6 +110,25 @@ class AttendanceController(Controller):
                 "message": "You are already checked in !!",
             }
 
+        # Only one punch pair a day: once today already has an attendance the
+        # employee may not check in again, even after having checked out.
+        already_punched = (
+            request.env["hr.attendance"]
+            .sudo()
+            .search_count(
+                [
+                    ("employee_id", "=", employee.id),
+                    ("date", "=", fields.Date.context_today(employee)),
+                ]
+            )
+        )
+        if already_punched:
+            return {
+                "status": 400,
+                "data": self._get_attendance_status(employee),
+                "message": "You have already checked in today !!",
+            }
+
         try:
             employee._attendance_action_change(self._get_geo_information(kwargs))
         except (UserError, ValidationError) as error:
