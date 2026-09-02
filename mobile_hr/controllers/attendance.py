@@ -239,7 +239,7 @@ class AttendanceController(Controller):
             self._parse_date(kwargs["endDate"]) if kwargs.get("endDate") else today
         )
         # No day is absent before it is over.
-        date_to = min(date_to, today)
+        # date_to = min(date_to, today)
 
         if date_to < date_from:
             return {"status": 200, "data": [], "message": "attendance"}
@@ -294,16 +294,16 @@ class AttendanceController(Controller):
                     day_type = "weekend"
                 else:
                     day_type = "absent"
-
-                data.append(
-                    {
-                        "date": fields.Date.to_string(day),
-                        "type": day_type,
-                        "check_in": False,
-                        "check_out": False,
-                        "worked_hours": 0.0,
-                    }
-                )
+                if day <= today or date_type != "absent":
+                    data.append(
+                        {
+                            "date": fields.Date.to_string(day),
+                            "type": day_type,
+                            "check_in": False,
+                            "check_out": False,
+                            "worked_hours": 0.0,
+                        }
+                    )
 
             day += timedelta(days=1)
 
