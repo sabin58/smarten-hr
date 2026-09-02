@@ -6,12 +6,6 @@ from odoo.addons.mobile_auth.controllers.auth import generate_image
 from datetime import datetime, time, timedelta
 
 
-class HREmployeePublic(models.Model):
-    _inherit = "hr.employee.public"
-
-    joined_date = fields.Datetime("Joined Date", related="employee_id.joined_date")
-
-
 class HREmployee(models.Model):
     _inherit = "hr.employee"
 
@@ -20,6 +14,8 @@ class HREmployee(models.Model):
     is_present = fields.Boolean(compute="_compute_is_present", store=False)
 
     joined_date = fields.Datetime("Joined Date")
+    attendance_lat = fields.Float("Attendance(lat)")
+    attendance_long = fields.Float("Attendance(long)")
 
     def _compute_is_present(self):
         # sudo: mobile app users may be portal users, who have no ACL on
@@ -225,3 +221,11 @@ class HREmployee(models.Model):
             "weekend_absent": len(weekend_absent),
             "attendance_percentage": attendance_percentage,
         }
+
+
+class HREmployeePublic(models.Model):
+    _inherit = "hr.employee.public"
+
+    joined_date = fields.Datetime("Joined Date", related="employee_id.joined_date")
+    attendance_lat = fields.Float("Attendance(lat)")
+    attendance_long = fields.Float("Attendance(long)")

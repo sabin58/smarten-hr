@@ -61,6 +61,8 @@ class AttendanceController(Controller):
             "check_out": fields.Datetime.to_string(last_attendance.check_out),
             "worked_hours_today": round(worked_hours, 2),
             "attendance_count_today": len(attendances),
+            "allowed_lat": employee.attendance_lat,
+            "allowed_long": employee.attendance_long,
         }
 
     @route(

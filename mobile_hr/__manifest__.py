@@ -25,6 +25,7 @@
         "data/approval_category_data.xml",
         "views/external_news.xml",
         "views/approval_category_views.xml",
+        "views/employee_view.xml",
     ],
     "assets": {},
 }
