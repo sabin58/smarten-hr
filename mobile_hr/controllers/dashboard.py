@@ -150,7 +150,7 @@ class HRDashboardController(http.Controller):
 
     @http.route(
         "/mobile/api/my/dashboard",
-        type="json",
+        type="jsonrpc",
         methods=["POST"],
         csrf=False,
         auth="public",
@@ -267,7 +267,7 @@ class HRDashboardController(http.Controller):
 
     @http.route(
         "/mobile/api/today/summary",
-        type="json",
+        type="jsonrpc",
         methods=["POST"],
         csrf=False,
         auth="public",
@@ -300,7 +300,7 @@ class HRDashboardController(http.Controller):
 
     @http.route(
         "/mobile/api/employee",
-        type="json",
+        type="jsonrpc",
         methods=["POST"],
         csrf=False,
         auth="public",
@@ -376,7 +376,7 @@ class HRDashboardController(http.Controller):
 
     @http.route(
         "/mobile/api/departments",
-        type="json",
+        type="jsonrpc",
         methods=["POST"],
         csrf=False,
         auth="public",
@@ -393,7 +393,7 @@ class HRDashboardController(http.Controller):
 
     @http.route(
         "/mobile/api/branches",
-        type="json",
+        type="jsonrpc",
         methods=["POST"],
         csrf=False,
         auth="public",

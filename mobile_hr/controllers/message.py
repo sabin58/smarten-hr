@@ -26,17 +26,29 @@ def get_record_messages(model, res_id, limit):
 
     data = []
     for message in messages:
-        tracking_values = [
-            {
-                "id": tracking["id"],
-                "field": tracking["fieldName"],
-                "label": tracking["changedField"],
-                "field_type": tracking["fieldType"],
-                "old_value": tracking["oldValue"]["value"],
-                "new_value": tracking["newValue"]["value"],
-            }
-            for tracking in message.tracking_value_ids._tracking_value_format()
-        ]
+        # 19.0 moved the field metadata under a 'fieldInfo' key, dropped
+        # 'fieldName' from it and made 'oldValue'/'newValue' the values
+        # themselves. The name of the field is read back off the tracking
+        # record, so the payload of the app stays the one it knows.
+        trackings_by_id = {
+            tracking.id: tracking for tracking in message.tracking_value_ids
+        }
+        tracking_values = []
+        for formatted in message.tracking_value_ids._tracking_value_format():
+            tracking = trackings_by_id[formatted["id"]]
+            field_info = formatted["fieldInfo"]
+            tracking_values.append(
+                {
+                    "id": formatted["id"],
+                    "field": tracking.field_id.name
+                    or (tracking.field_info or {}).get("name")
+                    or "unknown",
+                    "label": field_info["changedField"],
+                    "field_type": field_info["fieldType"],
+                    "old_value": formatted["oldValue"],
+                    "new_value": formatted["newValue"],
+                }
+            )
 
         data.append(
             {

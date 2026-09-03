@@ -6,7 +6,7 @@
     "author": "Smarten Technologies Pvt. Ltd",
     "website": "https://www.smarten.com.np",
     "category": "Uncategorized",
-    "version": "18.1",
+    "version": "19.0.1.0.0",
     "depends": [
         "mobile_auth",
         "website",

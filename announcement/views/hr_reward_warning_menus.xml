@@ -4,7 +4,7 @@
     <menuitem id="hr_announcement_menu_root"
               name="Announcements"
               groups="hr.group_hr_user,hr.group_hr_manager"
-              web_icon="hr_reward_warning,static/description/icon.png"
+              web_icon="announcement,static/description/icon.png"
               sequence="-6"/>
 
     <!--  HR Announcements Menu  -->

@@ -28,8 +28,23 @@ PAYSLIP_DETAIL_SPECIFICATIONS = {
 }
 
 
+# 19.0 renamed the 'done' state of a payslip to 'validated'. The app knows
+# the states of 18.0, so the one that was renamed is handed back under its
+# former value. The others ('draft', 'paid', 'cancel') did not change.
+PAYSLIP_STATES = {"validated": "done"}
+
+
+def restore_payslip_state(payslip_data):
+    """Put back the 18.0 value of ``state`` on a read payslip payload."""
+    if isinstance(payslip_data, dict) and "state" in payslip_data:
+        payslip_data["state"] = PAYSLIP_STATES.get(
+            payslip_data["state"], payslip_data["state"]
+        )
+    return payslip_data
+
+
 class PayslipController(Controller):
-    @route("/mobile/api/my-payslip", type="json", auth="public", csrf=False, cors="*")
+    @route("/mobile/api/my-payslip", type="jsonrpc", auth="public", csrf=False, cors="*")
     @login_required()
     def get_my_payslip(self, **kwargs):
         PARENT_COMPANY_ID = get_hr_company_id()
@@ -54,11 +69,14 @@ class PayslipController(Controller):
             )
         )
 
+        for record in data.get("records", []):
+            restore_payslip_state(record)
+
         return {"status": 200, "data": data, "message": "my payslip"}
 
     @route(
         "/mobile/api/download-payslip/<int:payroll_id>",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -77,7 +95,7 @@ class PayslipController(Controller):
 
     @route(
         "/mobile/api/my-payslip/<int:payroll_id>",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -89,8 +107,10 @@ class PayslipController(Controller):
 
         if not payslip or payslip.employee_id != employee_id:
             return {"status": 404, "data": None, "message": "Payslip not found !!"}
-        data = payslip.sudo().web_read(
-            PAYSLIP_DETAIL_SPECIFICATIONS,
-        )[0]
+        data = restore_payslip_state(
+            payslip.sudo().web_read(
+                PAYSLIP_DETAIL_SPECIFICATIONS,
+            )[0]
+        )
 
         return {"status": 200, "data": data, "message": "Payslip Detail"}

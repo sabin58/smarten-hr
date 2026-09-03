@@ -5,7 +5,7 @@ from odoo import fields
 class RashifalController(Controller):
     @route(
         "/mobile/api/rashifal",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         methods=["POST"],

@@ -11,7 +11,7 @@ TASK_READ_SPECIFICATIONS = {
 
 
 class ProjectController(Controller):
-    @route("/mobile/api/my-tasks", type="json", auth="public", csrf=False, cors="*")
+    @route("/mobile/api/my-tasks", type="jsonrpc", auth="public", csrf=False, cors="*")
     @login_required()
     def get_my_tasks(self, **kwargs):
         limit = kwargs.get("limit") or 80

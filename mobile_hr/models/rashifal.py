@@ -26,13 +26,10 @@ class Mero(models.Model):
     detail_url = fields.Char()
     date = fields.Date(default=fields.Date.today)
 
-    _sql_constraints = [
-        (
-            "unique_rashi_date",
-            "unique(rashi, date)",
-            "Rashifal already exists for this rashi today!",
-        )
-    ]
+    _unique_rashi_date = models.Constraint(
+        "unique(rashi, date)",
+        "Rashifal already exists for this rashi today!",
+    )
 
     @api.model
     def scrape_daily_rashifal(self):

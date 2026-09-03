@@ -9,7 +9,7 @@ import textwrap
 class AnnocementController(Controller):
     @route(
         "/mobile/api/notices",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         methods=["POST"],
@@ -108,7 +108,7 @@ class AnnocementController(Controller):
 
     @route(
         "/mobile/api/news",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         methods=["POST"],

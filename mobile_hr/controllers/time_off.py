@@ -163,7 +163,7 @@ class TimeOffController(Controller):
 
     @route(
         "/mobile/api/timeoff/dashboard",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -270,7 +270,7 @@ class TimeOffController(Controller):
             "message": "timeoff dashboard",
         }
 
-    @route("/mobile/api/timeoff", type="json", auth="public", csrf=False, cors="*")
+    @route("/mobile/api/timeoff", type="jsonrpc", auth="public", csrf=False, cors="*")
     @login_required()
     def get_all_timeoff(self, **kwargs):
 
@@ -315,7 +315,7 @@ class TimeOffController(Controller):
         return {"status": 200, "data": leaves, "message": "timeoff"}
 
     @route(
-        "/mobile/api/timeoff/<int:id>", type="json", auth="public", csrf=False, cors="*"
+        "/mobile/api/timeoff/<int:id>", type="jsonrpc", auth="public", csrf=False, cors="*"
     )
     @login_required()
     def get_timeoff_detail(self, id, **kwargs):
@@ -340,7 +340,7 @@ class TimeOffController(Controller):
 
     @route(
         "/mobile/api/profile/dashboard",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -397,7 +397,7 @@ class TimeOffController(Controller):
             "message": "profile dashboard",
         }
 
-    @route("/mobile/api/timeoff/my", type="json", auth="public", csrf=False, cors="*")
+    @route("/mobile/api/timeoff/my", type="jsonrpc", auth="public", csrf=False, cors="*")
     @login_required()
     def get_my_timeoff(self, **kwargs):
 
@@ -428,7 +428,7 @@ class TimeOffController(Controller):
         return {"status": 200, "data": leaves, "message": "timeoff"}
 
     @route(
-        "/mobile/api/timeoff/types", type="json", auth="public", csrf=False, cors="*"
+        "/mobile/api/timeoff/types", type="jsonrpc", auth="public", csrf=False, cors="*"
     )
     @login_required()
     def get_timeoff_types(self, **kwargs):
@@ -467,7 +467,7 @@ class TimeOffController(Controller):
             .search(
                 domain=[
                     "|",
-                    ["requires_allocation", "=", "no"],
+                    ["requires_allocation", "=", False],
                     "&",
                     ["has_valid_allocation", "=", True],
                     "|",
@@ -484,19 +484,23 @@ class TimeOffController(Controller):
                 {
                     "id": leave_type.id,
                     "name": leave_type.name,
-                    "requires_allocation": leave_type.requires_allocation,
+                    "requires_allocation": "yes"
+                    if leave_type.requires_allocation
+                    else "no",
                     "remaining_leaves": leave_type.virtual_remaining_leaves,
                     "max_leaves": leave_type.max_leaves,
                     "request_unit": leave_type.request_unit,
                     "color": leave_type.color,
-                    "employee_requests": leave_type.employee_requests,
+                    "employee_requests": "yes"
+                    if leave_type.employee_requests
+                    else "no",
                 }
             )
 
         return {"status": 200, "data": types_data, "message": "timeoff types"}
 
     @route(
-        "/mobile/api/timeoff/create", type="json", auth="public", csrf=False, cors="*"
+        "/mobile/api/timeoff/create", type="jsonrpc", auth="public", csrf=False, cors="*"
     )
     @login_required()
     def create_timeoff(self, **kwargs):
@@ -626,7 +630,7 @@ class TimeOffController(Controller):
 
     @route(
         "/mobile/api/timeoff/<int:id>",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         methods=["PUT"],
@@ -718,7 +722,7 @@ class TimeOffController(Controller):
 
     @route(
         "/mobile/api/timeoff/<int:id>/cancel",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -767,7 +771,7 @@ class TimeOffController(Controller):
 
     @route(
         "/mobile/api/timeoff/<int:id>/approve",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -826,7 +830,7 @@ class TimeOffController(Controller):
 
     @route(
         "/mobile/api/timeoff/<int:id>/validate",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -851,7 +855,7 @@ class TimeOffController(Controller):
             }
 
         try:
-            leave.with_user(SUPERUSER_ID).action_validate()
+            leave.with_user(SUPERUSER_ID)._action_validate()
             request.env.cr.commit()
 
             return {
@@ -867,7 +871,7 @@ class TimeOffController(Controller):
 
     @route(
         "/mobile/api/timeoff/<int:id>/refuse",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",

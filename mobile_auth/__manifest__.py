@@ -8,7 +8,7 @@
     "author": "Smarten Technologies",
     "website": "https://www.smartentechnologies.com.np",
     "category": "Uncategorized",
-    "version": "0.1",
+    "version": "19.0.1.0.0",
     "depends": ["base", "mail", "sms", "hr"],
     "data": ["security/ir.model.access.csv", "views/views.xml"],
 }

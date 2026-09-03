@@ -212,7 +212,7 @@ class ApprovalController(Controller):
 
     @route(
         "/mobile/api/approval/categories",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -226,7 +226,7 @@ class ApprovalController(Controller):
             "message": "approval categories",
         }
 
-    @route("/mobile/api/approval", type="json", auth="public", csrf=False, cors="*")
+    @route("/mobile/api/approval", type="jsonrpc", auth="public", csrf=False, cors="*")
     @login_required()
     def get_all_approvals(self, **kwargs):
         limit = kwargs.get("limit") or 80
@@ -244,7 +244,7 @@ class ApprovalController(Controller):
 
         return {"status": 200, "data": approvals, "message": "approvals"}
 
-    @route("/mobile/api/approval/my", type="json", auth="public", csrf=False, cors="*")
+    @route("/mobile/api/approval/my", type="jsonrpc", auth="public", csrf=False, cors="*")
     @login_required()
     def get_my_approvals(self, **kwargs):
         limit = kwargs.get("limit") or 80
@@ -267,7 +267,7 @@ class ApprovalController(Controller):
 
     @route(
         "/mobile/api/approval/to-review",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -296,7 +296,7 @@ class ApprovalController(Controller):
 
     @route(
         "/mobile/api/approval/submit",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -338,7 +338,7 @@ class ApprovalController(Controller):
 
     @route(
         "/mobile/api/approval/<int:id>",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -374,7 +374,7 @@ class ApprovalController(Controller):
 
     @route(
         "/mobile/api/approval/<int:id>/approve",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -413,7 +413,7 @@ class ApprovalController(Controller):
 
     @route(
         "/mobile/api/approval/<int:id>/refuse",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -452,7 +452,7 @@ class ApprovalController(Controller):
 
     @route(
         "/mobile/api/approval/<int:id>/cancel",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",

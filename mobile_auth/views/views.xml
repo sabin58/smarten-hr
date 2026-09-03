@@ -6,8 +6,14 @@
         <field name="model">res.users</field>
         <field name="inherit_id" ref="base.view_users_simple_form" />
         <field name="arch" type="xml">
-            <xpath expr="//group[@name='phone_numbers']" position="inside">
-                <field name="hr_app_role" />
+            <!-- 19.0 redesigned the simplified user form and dropped the
+                 'phone_numbers' group the role used to sit in; it is added
+                 below the phone instead, where that group used to be. -->
+            <xpath expr="//field[@name='phone']/.." position="after">
+                <div class="d-flex align-items-baseline w-100">
+                    <i class="fa fa-fw me-1 fa-id-badge text-primary" title="Role(HR App)"/>
+                    <field name="hr_app_role" class="w-100"/>
+                </div>
             </xpath>
         </field>
     </record>

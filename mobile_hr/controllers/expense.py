@@ -24,8 +24,7 @@ EXPENSE_SPECIFICATIONS = {
     "product_id": {"fields": {"display_name": {}, "name": {}}},
     "employee_id": {"fields": {"display_name": {}}},
     "currency_id": {"fields": {"display_name": {}}},
-    # Related to the report, read straight off the expense so the app never
-    # has to know an hr.expense.sheet exists.
+    # Kept by mobile_hr on hr.expense itself, 19.0 renamed both.
     "approved_by": {"fields": {"display_name": {}}},
     "approved_on": {},
 }
@@ -92,19 +91,19 @@ class ExpenseController(Controller):
         return created
 
     def _is_approver(self, expense):
-        """Whether the logged in user decides on the report of this expense.
+        """Whether the logged in user decides on this expense.
 
-        user_id on the report is only filled from the expense manager of the
-        employee or from their own manager. When neither is set Odoo falls
-        back to the department manager, so the same fallback is applied here
-        rather than leaving the expense with nobody able to approve it.
+        19.0 dropped hr.expense.sheet, the manager of the expense itself now
+        carries what the report used to. It is only filled from the expense
+        manager of the employee or from their own manager, and when neither
+        is set Odoo falls back to the department manager, so the same
+        fallback is applied here rather than leaving the expense with nobody
+        able to approve it.
         """
-        sheet = expense.sheet_id
-
-        if not sheet:
+        if not expense:
             return False
 
-        responsible = sheet.user_id or sheet._get_responsible_for_approval()
+        responsible = expense.manager_id or expense._get_default_responsible_for_approval()
 
         return bool(responsible) and request.env.user in responsible
 
@@ -114,9 +113,9 @@ class ExpenseController(Controller):
 
         return [
             "|",
-            ("sheet_id.user_id", "=", uid),
+            ("manager_id", "=", uid),
             "&",
-            ("sheet_id.user_id", "=", False),
+            ("manager_id", "=", False),
             "|",
             ("employee_id.parent_id.user_id", "=", uid),
             ("employee_id.department_id.manager_id.user_id", "=", uid),
@@ -124,7 +123,7 @@ class ExpenseController(Controller):
 
     @route(
         "/mobile/api/expense/categories",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -234,10 +233,9 @@ class ExpenseController(Controller):
 
             created_attachments = self._create_attachments(expense, uploads)
 
-            # Straight to the approver: the report is created and submitted
-            # here so the app only ever deals with the expense itself.
-            sheet = expense._create_sheets_from_expense()
-            sheet.action_submit_sheet()
+            # Straight to the approver. 19.0 submits the expense itself,
+            # there is no report to create around it anymore.
+            expense.action_submit()
 
             expense_data = expense.web_read(EXPENSE_SPECIFICATIONS)[0]
             expense_data["attachments"] = self._serialize_attachments(
@@ -257,7 +255,7 @@ class ExpenseController(Controller):
 
     @route(
         "/mobile/api/expenses",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -310,7 +308,7 @@ class ExpenseController(Controller):
 
     @route(
         "/mobile/api/expense/<int:expense_id>",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -333,13 +331,11 @@ class ExpenseController(Controller):
 
         data = expense.web_read(EXPENSE_SPECIFICATIONS)[0]
         data["attachments"] = self._serialize_attachments(expense.attachment_ids)
-        data["can_approve"] = self._is_approver(expense) and expense.sheet_id.state in (
+        data["can_approve"] = self._is_approver(expense) and expense.state in (
             "draft",
-            "submit",
+            "submitted",
         )
-        data["messages"] = get_record_messages(
-            "hr.expense.sheet", expense.sheet_id.id, 80
-        )
+        data["messages"] = get_record_messages("hr.expense", expense.id, 80)
         return {
             "status": 200,
             "data": data,
@@ -347,18 +343,14 @@ class ExpenseController(Controller):
         }
 
     def _get_expense_for_approval(self, expense_id):
-        """Return the report behind the expense if the caller may decide on it.
+        """Return the expense if the caller may decide on it.
 
-        The app only knows about expenses, so the report is resolved here.
-        It carries a single line, the one created on submission.
-
-        :return: a tuple of (hr.expense, hr.expense.sheet, error dict)
+        :return: a tuple of (hr.expense, error dict)
         """
         expense = request.env["hr.expense"].sudo().browse(expense_id).exists()
 
         if not expense:
             return (
-                None,
                 None,
                 {
                     "status": 404,
@@ -367,11 +359,9 @@ class ExpenseController(Controller):
                 },
             )
 
-        sheet = expense.sheet_id
-
-        if not sheet:
+        # An expense that was never submitted has no approval state yet.
+        if not expense.approval_state:
             return (
-                None,
                 None,
                 {
                     "status": 400,
@@ -381,10 +371,9 @@ class ExpenseController(Controller):
             )
 
         # can_approve on the model is bypassed by sudo, so the approver is
-        # checked here: only the manager of the report decides.
+        # checked here: only the manager of the expense decides.
         if not self._is_approver(expense):
             return (
-                None,
                 None,
                 {
                     "status": 403,
@@ -393,9 +382,8 @@ class ExpenseController(Controller):
                 },
             )
 
-        if sheet.state not in ("draft", "submit"):
+        if expense.state not in ("draft", "submitted"):
             return (
-                None,
                 None,
                 {
                     "status": 400,
@@ -404,11 +392,11 @@ class ExpenseController(Controller):
                 },
             )
 
-        return expense, sheet, None
+        return expense, None
 
     @route(
         "/mobile/api/expense/<int:expense_id>/approve",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -416,15 +404,15 @@ class ExpenseController(Controller):
     @login_required()
     def approve_expense(self, expense_id, **kwargs):
 
-        expense, sheet, error = self._get_expense_for_approval(expense_id)
+        expense, error = self._get_expense_for_approval(expense_id)
 
         if error:
             return error
 
         try:
-            # _do_approve rather than action_approve_expense_sheets, which
-            # returns a duplicate-check wizard action the app cannot render.
-            sheet._do_approve()
+            # _do_approve rather than action_approve, which returns a
+            # duplicate-check wizard action the app cannot render.
+            expense._do_approve()
 
         except (UserError, ValidationError) as e:
             return {"status": 400, "data": None, "message": str(e)}
@@ -439,7 +427,7 @@ class ExpenseController(Controller):
 
     @route(
         "/mobile/api/expense/<int:expense_id>/refuse",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -456,15 +444,15 @@ class ExpenseController(Controller):
                 "message": "A reason is required to refuse an expense",
             }
 
-        expense, sheet, error = self._get_expense_for_approval(expense_id)
+        expense, error = self._get_expense_for_approval(expense_id)
 
         if error:
             return error
 
         try:
-            # _do_refuse rather than action_refuse_expense_sheets, which
-            # returns the reason wizard instead of applying it.
-            sheet._do_refuse(reason)
+            # _do_refuse rather than action_refuse, which returns the reason
+            # wizard instead of applying it.
+            expense._do_refuse(reason)
 
         except (UserError, ValidationError) as e:
             return {"status": 400, "data": None, "message": str(e)}

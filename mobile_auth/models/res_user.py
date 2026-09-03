@@ -1,5 +1,4 @@
-from odoo import models, fields
-
+from odoo import fields, models
 
 ROLE = [
     ("driver", "Driver"),
@@ -12,7 +11,9 @@ ROLE = [
 class ResUser(models.Model):
     _inherit = "res.users"
 
-    role = fields.Selection(ROLE, string="Role(Mining App)", default="driver")
+    mining_app_role = fields.Selection(
+        ROLE, string="Role(Mining App)", default="driver"
+    )
     hr_app_role = fields.Selection(
         [
             ("admin", "Admin"),
@@ -22,5 +23,10 @@ class ResUser(models.Model):
         default="user",
         string="Role(HR App)",
     )
-    employee_no = fields.Char(related="employee_id.barcode")
-    work_phone = fields.Char(related="employee_id.work_phone")
+    employee_no = fields.Char(related="employee_id.barcode", string="Employee No")
+
+    department_id = fields.Many2one(
+        related="employee_id.department_id",
+        readonly=False,
+        related_sudo=False,
+    )

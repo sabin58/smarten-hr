@@ -21,17 +21,17 @@ class HrEmployee(models.Model):
                  ('date_start', '<=', fields.Date.today())])
             announcement_ids_emp = (self.env['hr.announcement'].
             sudo().search_count(
-                [('employee_ids', 'in', self.id),
+                [('employee_ids', 'in', employee.id),
                  ('state', '=', 'approved'),
                  ('date_start', '<=', fields.Date.today())]))
             announcement_ids_dep = (self.env['hr.announcement'].
             sudo().search_count(
-                [('department_ids', 'in', self.department_id.id),
+                [('department_ids', 'in', employee.department_id.id),
                  ('state', '=', 'approved'),
                  ('date_start', '<=', fields.Date.today())]))
             announcement_ids_job = (self.env['hr.announcement'].
             sudo().search_count(
-                [('position_ids', 'in', self.job_id.id),
+                [('position_ids', 'in', employee.job_id.id),
                  ('state', '=', 'approved'),
                  ('date_start', '<=', fields.Date.today())]))
             employee.announcement_count = (announcement_ids_general +
@@ -61,12 +61,12 @@ class HrEmployee(models.Model):
         announcement_ids = (announcement_ids_general.ids +
                             announcement_ids_emp.ids +
                             announcement_ids_job.ids + announcement_ids_dep.ids)
-        view_id = self.env.ref('hr_reward_warning.hr_announcement_view_form').id
+        view_id = self.env.ref('announcement.hr_announcement_view_form').id
         if announcement_ids:
             if len(announcement_ids) > 1:
                 value = {
                     'domain': [('id', 'in', announcement_ids)],
-                    'view_mode': 'tree,form',
+                    'view_mode': 'list,form',
                     'res_model': 'hr.announcement',
                     'type': 'ir.actions.act_window',
                     'name': _('Announcements'),

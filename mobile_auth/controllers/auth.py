@@ -156,7 +156,7 @@ def generate_image(model, image_field, id, timestamp=None):
 class MobileAuth(http.Controller):
     @http.route(
         "/mobile/api/login",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         methods=["POST"],
@@ -176,8 +176,8 @@ class MobileAuth(http.Controller):
         )
 
         try:
+            # Since 19.0 authenticate() no longer takes the database name.
             userId = request.env["res.users"].authenticate(
-                request.env.cr.dbname,
                 {
                     "login": kw.get("email"),
                     "password": kw.get("password"),
@@ -209,7 +209,7 @@ class MobileAuth(http.Controller):
 
     @http.route(
         "/mobile/api/phone/login",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         methods=["POST"],
@@ -232,7 +232,7 @@ class MobileAuth(http.Controller):
 
     @http.route(
         "/mobile/api/login/verifyotp",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         methods=["POST"],
@@ -252,7 +252,11 @@ class MobileAuth(http.Controller):
                 return {"status": 400, "message": "Invalid OTP !!"}
 
         user = request.env["res.users"].sudo().search([("login", "=", login)])
-        user = user.read(["login", "role", "name", "phone", "street", "image_128"])[0]
+        user = user.read(
+            ["login", "mining_app_role", "name", "phone", "street", "image_128"]
+        )[0]
+        # The field was renamed for 19.0, the key of the payload was not.
+        user["role"] = user.pop("mining_app_role")
 
         secret_key = (
             request.env["ir.config_parameter"]
@@ -278,7 +282,7 @@ class MobileAuth(http.Controller):
     # get login user
     @http.route(
         "/mobile/api/user",
-        type="json",
+        type="jsonrpc",
         methods=["POST"],
         csrf=False,
         auth="public",
@@ -303,7 +307,7 @@ class MobileAuth(http.Controller):
     # update user profile
     @http.route(
         "/mobile/api/user/update",
-        type="json",
+        type="jsonrpc",
         methods=["POST"],
         csrf=False,
         auth="public",
@@ -375,7 +379,7 @@ class MobileAuth(http.Controller):
             }
         }
 
-    @http.route("/mobile/api/banners", type="json", csrf=False, auth="public", cors="*")
+    @http.route("/mobile/api/banners", type="jsonrpc", csrf=False, auth="public", cors="*")
     def bannersImage(self, **kw):
         data = []
         for rec in request.env["mobile.banner"].sudo().search([]):
@@ -431,7 +435,7 @@ class MobileAuth(http.Controller):
 
     @http.route(
         "/mobile/api/hr/profile",
-        type="json",
+        type="jsonrpc",
         methods=["POST"],
         csrf=False,
         auth="public",
@@ -476,7 +480,7 @@ class MobileAuth(http.Controller):
 
     @http.route(
         "/mobile/api/reset-password",
-        type="json",
+        type="jsonrpc",
         methods=["POST"],
         csrf=False,
         auth="public",
@@ -508,7 +512,7 @@ class MobileAuth(http.Controller):
 
     @http.route(
         "/mobile/api/verify-otp",
-        type="json",
+        type="jsonrpc",
         methods=["POST"],
         csrf=False,
         auth="public",
@@ -564,7 +568,7 @@ class MobileAuth(http.Controller):
 
     @http.route(
         "/mobile/api/change-password",
-        type="json",
+        type="jsonrpc",
         methods=["POST"],
         csrf=False,
         auth="public",

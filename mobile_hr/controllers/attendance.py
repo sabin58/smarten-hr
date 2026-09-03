@@ -10,7 +10,12 @@ import pytz
 # Keys the app may send along with a punch. ``_attendance_action_change``
 # prefixes each of them with ``in_``/``out_``, so only keys that exist on both
 # sides of hr.attendance may be forwarded.
-GEO_KEYS = ("latitude", "longitude", "city", "country_name")
+GEO_KEYS = ("latitude", "longitude")
+
+# 19.0 replaced in_city/in_country_name with a single in_location. The app
+# still sends the city and the country separately, so they are joined into
+# the field that took their place rather than dropped.
+LOCATION_KEYS = ("city", "country_name")
 
 
 class AttendanceController(Controller):
@@ -18,6 +23,13 @@ class AttendanceController(Controller):
         geo_information = {
             key: kwargs[key] for key in GEO_KEYS if kwargs.get(key) is not None
         }
+
+        location = ", ".join(
+            str(kwargs[key]) for key in LOCATION_KEYS if kwargs.get(key)
+        )
+        if location:
+            geo_information["location"] = location
+
         if geo_information:
             geo_information["mode"] = "manual"
         return geo_information or None
@@ -67,7 +79,7 @@ class AttendanceController(Controller):
 
     @route(
         "/mobile/api/attendance-status",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -89,7 +101,7 @@ class AttendanceController(Controller):
             "message": "attendance status",
         }
 
-    @route("/mobile/api/check-in", type="json", auth="public", csrf=False, cors="*")
+    @route("/mobile/api/check-in", type="jsonrpc", auth="public", csrf=False, cors="*")
     @login_required()
     def check_in(self, **kwargs):
         employee = get_hr_employee()
@@ -140,7 +152,7 @@ class AttendanceController(Controller):
             "message": "checked in",
         }
 
-    @route("/mobile/api/check-out", type="json", auth="public", csrf=False, cors="*")
+    @route("/mobile/api/check-out", type="jsonrpc", auth="public", csrf=False, cors="*")
     @login_required()
     def check_out(self, **kwargs):
         employee = get_hr_employee()
@@ -216,7 +228,7 @@ class AttendanceController(Controller):
         return holiday_dates
 
     @route(
-        "/mobile/api/my-attendances", type="json", auth="public", csrf=False, cors="*"
+        "/mobile/api/my-attendances", type="jsonrpc", auth="public", csrf=False, cors="*"
     )
     @login_required()
     def get_my_attendance(self, **kwargs):
@@ -318,7 +330,7 @@ class AttendanceController(Controller):
 
     @route(
         "/mobile/api/mark-present/<int:employee_id>",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",

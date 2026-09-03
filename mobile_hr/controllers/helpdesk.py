@@ -72,7 +72,7 @@ class HelpDeskController(Controller):
 
     @route(
         "/mobile/api/helpdesk/ticket/<int:ticket_id>",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -113,7 +113,7 @@ class HelpDeskController(Controller):
 
     @route(
         "/mobile/api/helpdesk/dashboard",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -135,7 +135,7 @@ class HelpDeskController(Controller):
 
     @route(
         "/mobile/api/helpdesk/tickets",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -166,7 +166,7 @@ class HelpDeskController(Controller):
 
     @route(
         "/mobile/api/helpdesk/stages",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -202,7 +202,7 @@ class HelpDeskController(Controller):
 
     @route(
         "/mobile/api/helpdesk/tags",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
@@ -238,7 +238,7 @@ class HelpDeskController(Controller):
 
     @route(
         "/mobile/api/helpdesk/ticket/create",
-        type="json",
+        type="jsonrpc",
         auth="public",
         csrf=False,
         cors="*",
