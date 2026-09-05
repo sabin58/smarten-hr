@@ -810,7 +810,7 @@ class TimeOffController(Controller):
             }
 
         try:
-            leave.with_user(SUPERUSER_ID).action_approve()
+            leave.sudo().action_approve()
             request.env.cr.commit()
 
             return {
@@ -851,7 +851,7 @@ class TimeOffController(Controller):
             }
 
         try:
-            leave.with_user(SUPERUSER_ID).action_validate()
+            leave.sudo().action_approve()
             request.env.cr.commit()
 
             return {
