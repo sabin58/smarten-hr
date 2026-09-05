@@ -851,7 +851,7 @@ class TimeOffController(Controller):
             }
 
         try:
-            leave.sudo().action_approve()
+            leave.sudo().action_validate()
             request.env.cr.commit()
 
             return {
