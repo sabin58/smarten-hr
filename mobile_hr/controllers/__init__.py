@@ -11,3 +11,4 @@ from . import rashifal
 from . import helpdesk
 from . import expense
 from . import approval
+from . import profile
