@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="event_nepali_calendar" model="ir.ui.view">
+        <field name="name">push.config.view.nepali_calendar</field>
+        <field name="model">calendar.event</field>
+        <field name="arch" type="xml">
+            <nepalicalendar string="Meetings" date_start="start"
+                date_stop="stop" date_delay="duration" all_day="allday"
+                event_open_popup="true"
+                event_limit="5"
+                quick_create="true"
+                quick_create_view_id="%(calendar.view_calendar_event_form_quick_create)d"
+                color="partner_ids">
+                <field name="partner_ids" options="{'block': True, 'icon': 'fa fa-users'}"
+                    filters="1" widget="many2manyattendeeexpandable" write_model="calendar.filters"
+                    write_field="partner_id" filter_field="partner_checked"
+                    avatar_field="avatar_128"
+                />
+            </nepalicalendar>
+        </field>
+    </record>
+
+    <record id="event_action_new_request_view_calendar" model="ir.actions.act_window.view">
+        <field name="sequence" eval="0"></field>
+        <field name="view_mode">nepalicalendar</field>
+        <field name="act_window_id" ref="calendar.action_calendar_event" />
+        <field name="view_id" ref="event_nepali_calendar" />
+    </record>
+</odoo>

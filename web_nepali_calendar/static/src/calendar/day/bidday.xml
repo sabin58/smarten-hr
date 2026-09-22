@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="nepali_calendar.bigDayCell">
+        <td  t-att-data-date="props.day.ad_date" style="word-wrap: break-word;" t-attf-class="position-relative np-dayCell p-0 {{props.day.dayClassNames}} ">
+           <div class="np-day-big-cell d-flex flex-column align-items-center" t-on-click.stop="onRecordClick">
+                <span t-if="props.day.day" class="fs-4" >
+                    <t t-out="convertToNepaliUnicode(props.day.day)"/>
+                </span>
+                <t t-if="props.day.day">
+                    <div class="np_events w-100 p-0 m-0" t-ref="eventCell" >
+                        
+                    </div>
+                </t>
+           </div>
+        </td>
+    </t>
+</templates>

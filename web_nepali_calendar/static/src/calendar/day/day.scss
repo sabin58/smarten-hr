@@ -1,0 +1,26 @@
+.np-day-big-cell {
+  .np_events {
+    position: relative;
+    .np-event {
+      opacity: 1;
+      border-radius: 8px;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      text-align: left;
+      font-size: 11px;
+      text-overflow: ellipsis;
+      line-height: 1;
+      overflow: hidden;
+      z-index: 9999;
+      cursor: pointer;
+      border-width: 1px;
+      border-style: solid;
+    }
+    .view-all-btn {
+      text-align: center;
+    }
+  }
+}
+

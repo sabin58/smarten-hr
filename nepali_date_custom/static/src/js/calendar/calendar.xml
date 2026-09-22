@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="nepalidatepicker.calendar">
+       <div class="np-month-container p-3">
+             <t t-if="selection.type == 'day'">
+               <div class="d-flex gap-2 align-items-end">
+                 <Dropdown  navigationOptions="navigationOptions" bottomSheet="false">
+                   <button class="btn me-auto  btn-secondary">
+                     <t t-out="this.year.value"/> 
+                    </button>
+                     <t t-set-slot="content">
+                       <t t-foreach="yearOptions" t-as="year" t-key="year">
+                         <DropdownItem onSelected="() => this.selectYear(year)">
+                           <span t-out="year"></span>
+                          </DropdownItem>
+                        </t>
+                      </t>
+                  </Dropdown>
+                  <button
+                    class="btn btn-secondary"
+                      title="Previous"
+                      t-on-click="()=>this._prev()"
+                      aria-label="Previous">
+                      <i class="oi oi-arrow-left"/>
+                  </button>
+                  <h6 t-out="monthName()"/>  
+                   <button
+                     class="btn btn-secondary"
+                     title="Next"
+                     t-on-click="()=>this._next()"
+                     aria-label="Next">
+                     <i class="oi oi-arrow-right"/>
+                   </button>
+                 </div>
+               <table class="table table-borderless" >
+                    <thead>
+                      <tr class="">
+                         <th class="">आ</th>
+                         <th class="">सो</th>
+                         <th class="">मं</th>
+                         <th class="">बु</th>
+                         <th class="">बि</th>
+                         <th class="">शु</th>
+                         <th class="">श</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr t-foreach="generateCalendar" t-as="row" t-key="row_index">
+                        <t t-foreach="row" t-as="cell" t-key="cell_index">
+                               <Day day="cell" onApply="this.props.onApply"
+                         /> 
+                        </t>
+                      </tr>
+                    </tbody>
+               </table>
+             </t>
+
+       </div>
+    </t>
+</templates>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="nepali_calendar.Renderer">
+       <div class='overflow-y-auto flex-grow-1'  t-ref="root">
+        <div class="np-calendar-wrapper np_calendar_renderer">
+            <t t-if="props.model.scale == 'year'">
+                <t  t-foreach="[1,2,3,4,5,6,7,8,9,10,11,12]" t-as="month" t-key="month">
+                    <Calendar 
+                        model="props.model" 
+                        year="nepaliDate.year"
+                        month="month" 
+                        createRecord="props.createRecord"
+                        editRecord="props.editRecord"
+                        deleteRecord="props.deleteRecord"
+                    />
+                </t>
+            </t>
+            <t t-else="">
+                <Calendar 
+                    model="props.model" 
+                    year="nepaliDate.year"
+                    month="nepaliDate.month"
+                    createRecord="props.createRecord"
+                    editRecord="props.editRecord"
+                    deleteRecord="props.deleteRecord"
+                />
+            </t>
+        </div>
+       </div>
+    </t>
+</templates>

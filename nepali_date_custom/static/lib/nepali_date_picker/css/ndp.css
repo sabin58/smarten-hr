@@ -1,0 +1,4 @@
+#ndp-nepali-box #currentMonth{
+    display: flex;
+    flex-direction: row-reverse;
+}

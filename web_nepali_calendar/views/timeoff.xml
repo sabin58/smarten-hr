@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="timeoff_nepali_calendar_timeoff" model="ir.ui.view">
+        <field name="name">nepalicalendar.timeoff</field>
+        <field name="model">hr.leave</field>
+        <field name="arch" type="xml">
+            <nepalicalendar
+                color="color"
+                js_class="time_off_nepali_calendar"
+                string="Time Off Request"
+                form_view_id="%(hr_holidays.hr_leave_view_form_dashboard_new_time_off)d"
+                event_open_popup="true"
+                date_start="date_from"
+                date_stop="date_to"
+                show_unusual_days="True"
+            >
+                <field name="display_name" />
+                <field name="holiday_status_id" filters="1" invisible="1" color="color" />
+                <field name="state" invisible="1" />
+                <field name="is_hatched" invisible="1" />
+                <field name="is_striked" invisible="1" />
+                <field name="can_cancel" invisible="1" />
+            </nepalicalendar>
+        </field>
+    </record>
+
+    <record id="timeoff_nepali_calendar_timeoff_approve_deparment" model="ir.ui.view">
+        <field name="name">nepalicalendar.timeoff</field>
+        <field name="model">hr.leave</field>
+        <field name="arch" type="xml">
+            <nepalicalendar
+                js_class="time_off_nepali_calendar"
+                string="Time Off Request"
+                form_view_id="%(hr_holidays.hr_leave_view_form_dashboard_new_time_off)d"
+                event_open_popup="true"
+                date_start="date_from"
+                date_stop="date_to"
+                show_unusual_days="True"
+                color="color"
+                quick_create="0"
+            >
+                <field name="display_name" />
+                <field name="holiday_status_id" color="color" filters="1" invisible="1" />
+                <field name="employee_id" filters="1" />
+                <field name="is_hatched" invisible="1" />
+                <field name="is_striked" invisible="1" />
+            </nepalicalendar>
+        </field>
+    </record>
+
+    <record id="hr_holidays.hr_leave_action_new_request" model="ir.actions.act_window">
+        <field name="view_mode">nepalicalendar,calendar,list,form,activity</field>
+    </record>
+
+    <record id="hr_holidays.hr_leave_action_action_approve_department" model="ir.actions.act_window">
+        <field name="view_mode">list,kanban,form,nepalicalendar,calendar,activity</field>
+    </record>
+
+    <record id="action_view_calendar_manager_approve" model="ir.actions.act_window.view">
+        <field name="sequence" eval="3" />
+        <field name="view_mode">nepalicalendar</field>
+        <field name="view_id" ref="timeoff_nepali_calendar_timeoff_approve_deparment" />
+        <field name="act_window_id" ref="hr_holidays.hr_leave_action_action_approve_department" />
+    </record>
+
+    <record id="hr_leave_action_new_request_view_calendar" model="ir.actions.act_window.view">
+        <field name="sequence" eval="0"></field>
+        <field name="view_mode">nepalicalendar</field>
+        <field name="act_window_id" ref="hr_holidays.hr_leave_action_new_request" />
+        <field name="view_id" ref="timeoff_nepali_calendar_timeoff" />
+    </record>
+
+</odoo>

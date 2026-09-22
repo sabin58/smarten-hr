@@ -1,0 +1,106 @@
+.np-calendar-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+  justify-content: center;
+}
+
+.np-dayCell span {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 14px;
+  cursor: pointer;
+  &:hover {
+    background-color: o-color("info");
+    color: white;
+  }
+}
+
+.np-dayCell.np-today span {
+  background-color: o-color("danger");
+  color: white;
+  &:hover {
+    background-color: o-color("info");
+    color: white;
+  }
+}
+
+td.np-day-event {
+  background-color: rgb(240, 184, 184);
+}
+
+td.np-dayCell {
+  padding: 8px;
+  z-index: 1;
+  background-color: transparent;
+  div.np-day-big-cell {
+    height: 120px;
+  }
+}
+
+// .np-month-container {
+//   .o_event {
+//     background-color: green;
+//   }
+// }
+//
+
+// calendar color logic
+
+@for $i from 1 through length($o-colors-complete) {
+  $color: nth($o-colors-complete, $i);
+  $color-subtle: mix($o-white, $color, 55%);
+
+  .np_calendar_renderer {
+    .o_calendar_color_#{$i - 1} {
+      background-color: #{$color-subtle};
+      opacity: 0.3;
+      z-index: -1;
+      border-color: #{$color-subtle};
+
+      &.o_event_hatched {
+        background: repeating-linear-gradient(
+          45deg,
+          RGBA(to-rgb($color), 0.3),
+          RGBA(to-rgb($color), 0.3) 10px,
+          RGBA(to-rgb($color), 0.6) 10px,
+          RGBA(to-rgb($color), 0.6) 20px
+        ) !important;
+      }
+
+      &.o_event_striked:not(.o_event_dot) {
+        background: linear-gradient(
+          transparent 0 45%,
+          $color 45% 55%,
+          transparent 55% 100%
+        );
+      }
+
+      &.o_event_dot {
+        background-color: rgba(
+          var(--o-event-bg--subtle-rgb),
+          var(--o-bg-opacity)
+        );
+
+        &:before {
+          color: var(--o-event-bg, #{$info});
+        }
+      }
+    }
+  }
+}
+
+@for $size from 1 through length($o-colors) {
+  .np-dayCell.hr_mandatory_day_#{$size - 1} span {
+    color: #{nth($o-colors, $size)};
+    font-weight: bold;
+  }
+  .np-dayCell.o_calendar_disabled {
+    background-color: rgba($gray-200, 0.5);
+  }
+}
+

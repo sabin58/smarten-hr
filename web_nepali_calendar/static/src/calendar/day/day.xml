@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="nepali_calendar.dayCell">
+        <td t-on-click="onClick" t-att-data-date="props.day.ad_date" t-attf-class="position-relative np-dayCell {{props.day.dayClassNames}} ">
+            <span t-if="props.day.day" class="z"  >
+                <t t-out="convertToNepaliUnicode(props.day.day)"/>
+            </span>
+            <t t-if="props.day.day">
+                <div   t-foreach="props.day.eventClassNames" t-as="eventClass" t-key="eventClass_index" t-attf-class="{{eventClass.join(' ')}} position-absolute w-100 h-100 top-0 start-0">
+                    <!-- event background overlay -->
+                </div>
+            </t>
+        </td>
+    </t>
+</templates>

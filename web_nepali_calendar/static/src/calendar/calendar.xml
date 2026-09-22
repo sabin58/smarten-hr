@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="nepali_calendar.calendar">
+    <div t-if="scale==='year'" class="np-month-container p-3">
+        <div class="d-flex gap-2"><h6 t-out="monthName"/></div>
+                <table class="table table-borderless" >
+                   <thead>
+                     <tr class="">
+                        <th t-foreach="weeks.short" t-key="week" t-as="week" ><t t-out="week"/></th>
+                     </tr>
+                   </thead>
+                   <tbody>
+                     <tr t-foreach="generateCalendar" t-as="row" t-key="row_index">
+                       <t t-foreach="row" t-as="cell" t-key="cell_index">
+                              <Day day="cell" model="props.model"
+                              createRecord="props.createRecord"
+                              editRecord="props.editRecord"
+                              deleteRecord="props.deleteRecord"
+                              cells="cells"
+                              /> 
+                       </t>
+                     </tr>
+                   </tbody>
+                </table>
+       </div>
+      <table t-else="" class="table table-bordered w-full text-center" style="table-layout:fixed">
+            <thead>
+              <tr class="fw-bold">
+                <th class="fw-bolder" t-foreach="weeks.long" t-key="week" t-as="week" ><t t-out="week"/></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr t-foreach="generateCalendar" t-as="row" t-key="row_index">
+                <t t-foreach="row" t-as="cell" t-key="cell_index">
+                    <BigDay day="cell" model="props.model"
+                      createRecord="props.createRecord"
+                      editRecord="props.editRecord"
+                      deleteRecord="props.deleteRecord"
+                      cells="cells"
+                    /> 
+                </t>
+              </tr>
+            </tbody>
+      </table>
+    </t>
+</templates>

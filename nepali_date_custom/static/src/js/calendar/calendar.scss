@@ -1,0 +1,39 @@
+.np-calendar-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+  justify-content: center;
+}
+
+.np-dayCell span {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 14px;
+  cursor: pointer;
+  &:hover {
+    background-color: o-color("info");
+    color: white;
+  }
+}
+
+.np-dayCell.np-today span {
+  background-color: o-color("danger");
+  color: white;
+  &:hover {
+    background-color: o-color("info");
+    color: white;
+  }
+}
+
+td.np-day-selected span {
+  background-color: #c3e8ea;
+}
+
+td.np-dayCell {
+  padding: 8px;
+}
+

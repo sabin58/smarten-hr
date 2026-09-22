@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="nepalidatepicker.dayCell">
+        <td t-on-click="onClick" t-att-data-date="props.day.ad_date" t-attf-class="cursor-pointer np-dayCell {{props.day.dayClassNames}} ">
+            <span t-if="props.day.day"   >
+                <t t-out="props.day.day"/>
+            </span>
+        </td>
+    </t>
+</templates>
